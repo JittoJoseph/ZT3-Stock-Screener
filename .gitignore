@@ -17,3 +17,4 @@ token_store.json
 .idea/
 *.swp
 /outputs
+/valid_stock_list.csv

@@ -36,33 +36,55 @@ logger.addHandler(console_handler)
 
 # ... rest of the existing code from the old utils.py ...
 
-def load_stock_list():
-    """Loads the stock list from the CSV file specified in config."""
-    stock_file = config.settings['paths']['stock_list_file']
+def load_stock_list(filename=None):
+    """
+    Loads stock symbols and ISINs from a specified CSV file.
+
+    Args:
+        filename (str, optional): The path to the CSV file.
+                                  Defaults to config.settings['paths']['stock_list_file'].
+
+    Returns:
+        list: A list of dictionaries, each containing 'symbol' and 'isin',
+              or an empty list if the file is not found or empty.
+    """
+    if filename is None:
+        filename = config.settings['paths']['stock_list_file'] # Default to original list
+
     stocks = []
     try:
-        with open(stock_file, mode='r', newline='', encoding='utf-8') as csvfile:
+        # Ensure the file exists before trying to open it
+        if not os.path.exists(filename):
+            logging.error(f"Stock list file not found: {filename}")
+            return []
+
+        with open(filename, mode='r', newline='', encoding='utf-8') as csvfile:
             reader = csv.DictReader(csvfile)
-            if 'symbol' not in reader.fieldnames or 'isin' not in reader.fieldnames:
-                 logging.error(f"CSV file '{stock_file}' must contain 'symbol' and 'isin' columns.")
-                 return []
+            # Check if header exists and has the required columns
+            if not reader.fieldnames or 'symbol' not in reader.fieldnames or 'isin' not in reader.fieldnames:
+                logging.error(f"Stock list file '{filename}' is missing header or required columns ('symbol', 'isin').")
+                return []
+
             for row in reader:
-                # Basic validation: ensure symbol and isin are present
-                if row.get('symbol') and row.get('isin'):
-                    # Standardize: Uppercase symbol, ensure no leading/trailing spaces
-                    symbol = row['symbol'].strip().upper()
-                    isin = row['isin'].strip()
+                # Basic validation: ensure symbol and isin are present and not empty
+                symbol = row.get('symbol', '').strip()
+                isin = row.get('isin', '').strip()
+                if symbol and isin:
                     stocks.append({'symbol': symbol, 'isin': isin})
                 else:
-                    logging.warning(f"Skipping row due to missing symbol or isin: {row}")
-        logging.info(f"Loaded {len(stocks)} stocks from {stock_file}")
-        return stocks
+                    logging.warning(f"Skipping row in '{filename}' due to missing symbol or ISIN: {row}")
+
+        if not stocks:
+            logging.warning(f"No valid stock entries found in {filename}.")
+
     except FileNotFoundError:
-        logging.error(f"Stock list file not found: {stock_file}")
-        return []
+        # This case is already handled by os.path.exists, but kept for robustness
+        logging.error(f"Stock list file not found: {filename}")
     except Exception as e:
-        logging.error(f"Error reading stock list file {stock_file}: {e}")
-        return []
+        logging.error(f"Error reading stock list file {filename}: {e}")
+        return [] # Return empty list on error
+
+    return stocks
 
 def manage_reports():
     """Ensures only the latest MAX_REPORTS HTML files are kept in the report directory."""

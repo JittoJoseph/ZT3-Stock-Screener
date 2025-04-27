@@ -29,7 +29,7 @@ def run_screener():
     """Main function to run the daily breakout screener."""
     overall_start_time = time.time() # Start time for the whole process
     logging.info("="*50)
-    logging.info("Starting Daily Breakout Screener")
+    logging.info("Starting ZT-3 Daily Breakout Screener")
     logging.info("="*50)
 
     # 0. Initial Checks & Setup
@@ -41,12 +41,21 @@ def run_screener():
     # Clean up old reports before starting
     manage_reports()
 
-    # 1. Load Stock List
-    stocks_to_scan = load_stock_list()
+    # 1. Load VALIDATED Stock List
+    valid_stock_list_file = config.settings['paths']['valid_stock_list_file']
+    logging.info(f"Attempting to load validated stock list from: {valid_stock_list_file}")
+
+    if not os.path.exists(valid_stock_list_file):
+        logging.error(f"Validated stock list '{valid_stock_list_file}' not found.")
+        logging.error("Please run the validation script (utils/validate_isins.py) first to generate the list.")
+        return # Exit if the validated list doesn't exist
+
+    stocks_to_scan = load_stock_list(valid_stock_list_file) # Load the validated list
     if not stocks_to_scan:
-        logging.error("No stocks loaded from list. Exiting.")
+        logging.error(f"No stocks loaded from '{valid_stock_list_file}'. Exiting.")
+        # This might happen if the file exists but is empty or malformed.
         return
-    logging.info(f"Loaded {len(stocks_to_scan)} stocks for screening.")
+    logging.info(f"Loaded {len(stocks_to_scan)} stocks from validated list for screening.")
 
     # 2. Define Date Range for Data Fetching
     to_date_str = datetime.now().strftime('%Y-%m-%d')

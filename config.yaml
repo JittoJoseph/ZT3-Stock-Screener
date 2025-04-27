@@ -8,6 +8,7 @@ screener:
 
 paths:
   stock_list_file: "stock_list.csv"
+  valid_stock_list_file: "valid_stock_list.csv" # Add this line
   output_dir: "outputs"
   report_dir: "outputs/reports" # Relative to output_dir is also possible
   token_store_file: "token_store.json"

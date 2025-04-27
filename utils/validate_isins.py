@@ -19,6 +19,7 @@ from datetime import datetime, timedelta, timezone # Import timezone
 import time
 import json # Import json for discord payload
 import pytz # Import pytz for IST conversion
+import csv # Import csv module
 
 # Import necessary functions from our modules
 import config
@@ -254,7 +255,7 @@ def send_stocklist_to_discord(valid_stocks, invalid_stocks, total_checked, durat
 # --- Main Validation Logic ---
 
 def run_validation():
-    """Loads stocks and validates their instrument keys."""
+    """Loads stocks, validates keys, sends results, and saves valid list."""
     start_time = time.time() # Record start time
     logging.info("Starting ISIN validation process...")
 
@@ -265,10 +266,11 @@ def run_validation():
         # Instructions on how to get token are printed by get_access_token()
         return
 
-    # 2. Load Stock List
-    stocks = load_stock_list()
+    # 2. Load Stock List (Load from the original list for validation)
+    original_stock_list_file = config.settings['paths']['stock_list_file']
+    stocks = load_stock_list(original_stock_list_file) # Pass the specific file
     if not stocks:
-        logging.error("Cannot run validation. Failed to load stock list or list is empty.")
+        logging.error(f"Cannot run validation. Failed to load stock list '{original_stock_list_file}' or list is empty.")
         return
 
     logging.info(f"Found {len(stocks)} stocks to validate.")
@@ -303,7 +305,7 @@ def run_validation():
     # Calculate duration
     total_duration_seconds = validation_loop_end_time - validation_loop_start_time
 
-    # 4. Print Summary
+    # 4. Print Summary & Log Invalid
     logging.info("-" * 50)
     logging.info("Validation Summary:")
     logging.info(f"Total Stocks Checked: {len(stocks)}")
@@ -318,12 +320,38 @@ def run_validation():
             logging.warning(f"  - {item['symbol']} ({item['isin']})")
         logging.warning("Please check these entries in your stock_list.csv")
 
-    # 5. Send Validation Results to Discord
+    # 5. Save Valid List to File
+    valid_stock_list_file = config.settings['paths']['valid_stock_list_file']
+    if results['valid']:
+        try:
+            with open(valid_stock_list_file, mode='w', newline='', encoding='utf-8') as csvfile:
+                fieldnames = ['symbol', 'isin']
+                writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+
+                writer.writeheader()
+                # Write only symbol and isin from the valid results
+                writer.writerows([{'symbol': s['symbol'], 'isin': s['isin']} for s in results['valid']])
+            logging.info(f"Saved {len(results['valid'])} valid stocks to '{valid_stock_list_file}'.")
+        except IOError as e:
+            logging.error(f"Failed to save valid stock list to '{valid_stock_list_file}': {e}")
+        except Exception as e:
+            logging.error(f"Unexpected error saving valid stock list: {e}")
+    else:
+        logging.warning(f"No valid stocks found. '{valid_stock_list_file}' will not be created/updated.")
+        # Optionally delete the file if it exists and no valid stocks are found
+        if os.path.exists(valid_stock_list_file):
+            try:
+                os.remove(valid_stock_list_file)
+                logging.info(f"Removed existing '{valid_stock_list_file}' as no valid stocks were found.")
+            except OSError as e:
+                logging.warning(f"Could not remove existing '{valid_stock_list_file}': {e}")
+
+
+    # 6. Send Validation Results to Discord
     stocklist_webhook_url = config.get_discord_stocklist_webhook_url()
-    # Pass both valid and invalid lists
     send_stocklist_to_discord(
         results['valid'],
-        results['invalid'], # Pass the list of invalid stock dicts
+        results['invalid'],
         len(stocks),
         total_duration_seconds,
         stocklist_webhook_url
