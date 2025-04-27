@@ -43,6 +43,10 @@ def get_upstox_redirect_uri():
 def get_discord_webhook_url():
     return os.getenv("DISCORD_WEBHOOK_URL")
 
+def get_discord_stocklist_webhook_url():
+    """Gets the Discord webhook URL specifically for stock list validation reports."""
+    return os.getenv("DISCORD_STOCKLIST_WEBHOOK_URL")
+
 # Settings (from config.yaml) - accessed via the 'settings' dictionary
 # Example: config.settings['screener']['price_min']
 # Example: config.settings['paths']['token_store_file']
@@ -52,10 +56,16 @@ def get_discord_webhook_url():
 #    return settings.get('screener', {}).get('lookback_period', 20) # With default
 
 # Validate essential settings loaded correctly
-if not all([get_upstox_api_key(), get_upstox_api_secret(), get_upstox_redirect_uri(), get_discord_webhook_url()]):
-     print("Warning: One or more environment variables (API Keys, Redirect URI, Webhook URL) are missing in the .env file.")
+# Update validation to check the main webhook, the stocklist one is optional for this script
+if not all([get_upstox_api_key(), get_upstox_api_secret(), get_upstox_redirect_uri()]):
+     # Removed get_discord_webhook_url() check here as it's not essential for all parts
+     print("Warning: One or more environment variables (API Keys, Redirect URI) are missing in the .env file.")
      # Depending on the script's needs, you might want to exit here
      # raise SystemExit("Missing essential configuration in .env file.")
+
+# Add specific check for the main webhook if needed elsewhere
+# if not get_discord_webhook_url():
+#    print("Warning: DISCORD_WEBHOOK_URL is missing in the .env file.")
 
 if not settings:
     raise SystemExit("Failed to load settings from config.yaml")
