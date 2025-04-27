@@ -16,3 +16,4 @@ token_store.json
 .vscode/
 .idea/
 *.swp
+/outputs
