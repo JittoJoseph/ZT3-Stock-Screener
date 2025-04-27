@@ -2,17 +2,17 @@
 
 screener:
   lookback_period: 20 # Days for high close, average volume, and EMA
-  volume_multiplier: 1.5 # Add this line: Factor for volume surge check
+  volume_multiplier: 1.5 #  Factor for volume surge check
   price_limits:
     min_price: 20.0
     max_price: 1000.0
-    enable_max_price_limit: true
+    enable_max_price_limit: false
 
 paths:
   stock_list_file: "stock_list.csv"
-  valid_stock_list_file: "valid_stock_list.csv" # Add this line
+  valid_stock_list_file: "valid_stock_list.csv"
   output_dir: "outputs"
-  report_dir: "outputs/reports" # Relative to output_dir is also possible
+  report_dir: "outputs/reports"
   token_store_file: "token_store.json"
 
 reporting:
@@ -20,4 +20,3 @@ reporting:
 
 upstox:
   api_version: "v2"
-  # Note: Credentials are read from .env file
