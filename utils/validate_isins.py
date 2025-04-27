@@ -100,7 +100,7 @@ def validate_instrument_key(instrument_key, headers):
         return False
 
 def send_stocklist_to_discord(valid_stocks, invalid_stocks, total_checked, duration_seconds, webhook_url):
-    """Sends validation results (valid & invalid lists) to Discord using embeds."""
+    """Sends a summary of validation results (valid count, invalid list) to Discord."""
     if not webhook_url:
         logging.warning("Discord stocklist webhook URL not configured. Skipping notification.")
         return
@@ -127,105 +127,77 @@ def send_stocklist_to_discord(valid_stocks, invalid_stocks, total_checked, durat
         now_formatted_str = datetime.now(timezone.utc).strftime('%d %b %Y, %H:%M UTC')
 
     username = "Stocklist Validator"
-    embeds_to_send = [] # Initialize list to hold all embeds
+    embeds_to_send = [] # Will hold the summary embed and potentially invalid list parts
 
-    # --- Footer Text (Common for first embed of each type) ---
+    # --- Footer Text ---
     footer_text_common = f"Took {duration_str}\n{now_formatted_str}"
 
     # --- Embed Generation ---
+    MAX_CHARS_PER_DESC = 3800 # Keep for invalid list description if needed
+    MAX_LINES_PER_DESC = 45   # Keep for invalid list description if needed
 
-    # 1. Valid Stocks Embed(s)
-    if valid_stocks:
-        logging.info(f"Generating embed(s) for {len(valid_stocks)} valid stocks...")
-        color_valid = 0x00FF00 # Green
-        max_chars = 4000
-        max_lines = 50
-        current_desc_valid = ""
-        part_num_valid = 1
-        lines_needed_valid = len(valid_stocks)
-        total_parts_valid = (lines_needed_valid + max_lines - 1) // max_lines
-        footer_valid = footer_text_common # Use common footer for the first valid embed
-
-        for i, stock in enumerate(valid_stocks):
-            line = f"{i+1}. {stock['symbol']} ({stock['isin']})\n"
-            if len(current_desc_valid) + len(line) > max_chars or \
-               current_desc_valid.count('\n') >= max_lines:
-                embed = {
-                    "title": f"Valid Stock List ({len(valid_stocks)} Total)" + (f" - Part {part_num_valid}/{total_parts_valid}" if total_parts_valid > 1 else ""),
-                    "description": current_desc_valid,
-                    "color": color_valid,
-                    "footer": {"text": footer_valid},
-                }
-                embeds_to_send.append(embed)
-                current_desc_valid = line
-                part_num_valid += 1
-                footer_valid = None # No footer for subsequent parts
-            else:
-                current_desc_valid += line
-
-        if current_desc_valid:
-             embed = {
-                "title": f"Valid Stock List ({len(valid_stocks)} Total)" + (f" - Part {part_num_valid}/{total_parts_valid}" if total_parts_valid > 1 else ""),
-                "description": current_desc_valid,
-                "color": color_valid,
-             }
-             if footer_valid:
-                  embed["footer"] = {"text": footer_valid}
-             embeds_to_send.append(embed)
+    # Determine overall status color
+    if not valid_stocks and not invalid_stocks:
+        # Should not happen if total_checked > 0, but handle anyway
+        color = 0x808080 # Grey
+        summary_desc = f"Checked {total_checked} stocks. No valid or invalid stocks found (unexpected)."
+    elif invalid_stocks:
+        color = 0xFF0000 # Red if any invalid
+        summary_desc = f"Checked {total_checked} stocks. Found issues."
     else:
-        # If no valid stocks, add a placeholder message embed
-        logging.info("No valid stocks found.")
-        embed = {
-            "title": f"Stock List Validation Results",
-            "description": f"Checked {total_checked} stocks. No valid ISINs found.",
-            "color": 0xFFA500, # Orange
-            "footer": {"text": footer_text_common}, # Still show footer
-        }
-        embeds_to_send.append(embed)
+        color = 0x00FF00 # Green if all valid
+        summary_desc = f"Checked {total_checked} stocks. All entries are valid."
 
+    # Create the main summary embed
+    summary_embed = {
+        "title": "Stock List Validation Summary",
+        "description": summary_desc,
+        "color": color,
+        "fields": [
+            {"name": "Valid Stocks", "value": str(len(valid_stocks)), "inline": True},
+            {"name": "Invalid/Error Stocks", "value": str(len(invalid_stocks)), "inline": True},
+        ],
+        "footer": {"text": footer_text_common},
+    }
+    embeds_to_send.append(summary_embed)
 
-    # 2. Invalid Stocks Embed(s)
+    # Add Invalid Stocks List (if any, potentially split)
     if invalid_stocks:
-        logging.info(f"Generating embed(s) for {len(invalid_stocks)} invalid stocks...")
+        logging.info(f"Generating embed(s) for {len(invalid_stocks)} invalid stocks list...")
         color_invalid = 0xFF0000 # Red
-        max_chars = 4000
-        max_lines = 50
         current_desc_invalid = ""
         part_num_invalid = 1
         lines_needed_invalid = len(invalid_stocks)
-        total_parts_invalid = (lines_needed_invalid + max_lines - 1) // max_lines
-        # Use common footer only if no valid stock embeds were added OR if valid embeds exist but had no footer space
-        footer_invalid = footer_text_common if not embeds_to_send or "footer" not in embeds_to_send[0] else None
+        total_parts_invalid = (lines_needed_invalid + MAX_LINES_PER_DESC - 1) // MAX_LINES_PER_DESC
+        # Footer only needed if this is the *only* embed (i.e., no valid stocks found previously)
+        # However, the summary embed is always added first now, so invalid list never needs the main footer.
+        footer_invalid = None
 
         for i, stock in enumerate(invalid_stocks):
-            line = f"{i+1}. {stock['symbol']} ({stock['isin']})\n" # Assuming same structure
-            if len(current_desc_invalid) + len(line) > max_chars or \
-               current_desc_invalid.count('\n') >= max_lines:
+            line = f"{i+1}. {stock['symbol']} ({stock['isin']})\n"
+            if (len(current_desc_invalid) + len(line) > MAX_CHARS_PER_DESC and current_desc_invalid) or \
+               current_desc_invalid.count('\n') >= MAX_LINES_PER_DESC:
                 embed = {
                     "title": f"Invalid Stock List ({len(invalid_stocks)} Total)" + (f" - Part {part_num_invalid}/{total_parts_invalid}" if total_parts_invalid > 1 else ""),
                     "description": current_desc_invalid,
                     "color": color_invalid,
-                    "footer": {"text": footer_invalid} if footer_invalid else None, # Add footer only if applicable
+                    # No footer needed for these parts as summary embed has it
                 }
-                # Remove footer key entirely if None to avoid errors
-                if not footer_invalid: del embed["footer"]
                 embeds_to_send.append(embed)
                 current_desc_invalid = line
                 part_num_invalid += 1
-                footer_invalid = None # No footer for subsequent parts
             else:
                 current_desc_invalid += line
 
+        # Add the last chunk for invalid stocks
         if current_desc_invalid:
              embed = {
                 "title": f"Invalid Stock List ({len(invalid_stocks)} Total)" + (f" - Part {part_num_invalid}/{total_parts_invalid}" if total_parts_invalid > 1 else ""),
                 "description": current_desc_invalid,
                 "color": color_invalid,
              }
-             if footer_invalid:
-                  embed["footer"] = {"text": footer_invalid}
+             # No footer needed here either
              embeds_to_send.append(embed)
-
 
     # --- Send the embed message(s) ---
     if not embeds_to_send:

@@ -1,10 +1,12 @@
 # Application configuration settings
 
 screener:
-  price_min: 20.0
-  price_max: 1000.0
-  volume_surge_factor: 1.5
   lookback_period: 20 # Days for high close, average volume, and EMA
+  volume_multiplier: 1.5 # Add this line: Factor for volume surge check
+  price_limits:
+    min_price: 20.0
+    max_price: 1000.0
+    enable_max_price_limit: true
 
 paths:
   stock_list_file: "stock_list.csv"
