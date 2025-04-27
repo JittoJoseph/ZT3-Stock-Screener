@@ -15,7 +15,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, project_root)
 
 import requests # Ensure requests is imported
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone # Import timezone
 import time
 import json # Import json for discord payload
 
@@ -88,59 +88,102 @@ def validate_instrument_key(instrument_key, headers):
         logging.error(f"Unexpected error during validation for {instrument_key}: {e}")
         return False
 
-def send_stocklist_to_discord(valid_stocks, webhook_url):
+def send_stocklist_to_discord(valid_stocks, invalid_stocks_count, total_checked, webhook_url):
     """Sends the list of valid stocks to a Discord webhook."""
     if not webhook_url:
         logging.warning("Discord stocklist webhook URL not configured. Skipping notification.")
         return
     if not valid_stocks:
         logging.info("No valid stocks found to report to Discord.")
+        # Optionally send a message indicating no valid stocks were found
+        # payload = { "username": "Stocklist Validator", "content": "No valid stocks found during validation." }
+        # requests.post(webhook_url, json=payload)
         return
 
-    logging.info(f"Sending valid stock list to Discord...")
+    logging.info(f"Sending valid stock list ({len(valid_stocks)} stocks) to Discord...")
 
-    max_stocks_per_message = 25 # Discord embed field limit
-    num_messages = (len(valid_stocks) + max_stocks_per_message - 1) // max_stocks_per_message
+    timestamp_now = datetime.now(timezone.utc)
+    color = 0x00FF00 # Green color for valid list
+
+    # --- Create Embed(s) for Valid Stocks ---
+    embeds_to_send = []
+    max_chars_per_description = 4000 # Discord description limit (approx)
+    max_lines_per_description = 50 # Keep it reasonable, maybe increase slightly
+
+    current_description = ""
+    part_num = 1
+    lines_needed = len(valid_stocks)
+    total_parts = (lines_needed + max_lines_per_description - 1) // max_lines_per_description
+
+    for i, stock in enumerate(valid_stocks):
+        line = f"{i+1}. {stock['symbol']} ({stock['isin']})\n"
+
+        # Check if adding the next line exceeds limits
+        if len(current_description) + len(line) > max_chars_per_description or \
+           current_description.count('\n') >= max_lines_per_description:
+
+            # Finalize the previous embed
+            detail_embed = {
+                "title": f"Valid Stock List ({len(valid_stocks)} Total)" + (f" - Part {part_num}/{total_parts}" if total_parts > 1 else ""),
+                "description": current_description,
+                "color": color,
+                "timestamp": timestamp_now.isoformat() # Add timestamp to the first part
+            }
+            embeds_to_send.append(detail_embed)
+
+            # Reset for next chunk
+            current_description = line
+            part_num += 1
+            timestamp_now = None # Only add timestamp to the first embed if splitting
+        else:
+            current_description += line
+
+    # Add the last chunk
+    if current_description:
+         detail_embed = {
+            "title": f"Valid Stock List ({len(valid_stocks)} Total)" + (f" - Part {part_num}/{total_parts}" if total_parts > 1 else ""),
+            "description": current_description,
+            "color": color,
+         }
+         # Add timestamp only if it's the first (or only) embed
+         if timestamp_now:
+              detail_embed["timestamp"] = timestamp_now.isoformat()
+         embeds_to_send.append(detail_embed)
+
+
+    # --- Send the message(s) ---
+    # Send embeds in chunks of 10 per message if necessary
+    max_embeds_per_message = 10
+    num_messages = (len(embeds_to_send) + max_embeds_per_message - 1) // max_embeds_per_message
 
     for i in range(num_messages):
-        start_index = i * max_stocks_per_message
-        end_index = start_index + max_stocks_per_message
-        chunk = valid_stocks[start_index:end_index]
+        start_index = i * max_embeds_per_message
+        end_index = start_index + max_embeds_per_message
+        embed_chunk = embeds_to_send[start_index:end_index]
 
-        # Create description string
-        description_lines = [f"{idx + start_index + 1}. {stock['symbol']} ({stock['isin']})" for idx, stock in enumerate(chunk)]
-        description = "\n".join(description_lines)
-
-        embed_title = f"Valid Stock List ({len(valid_stocks)} Total)"
-        if num_messages > 1:
-            embed_title += f" (Part {i+1}/{num_messages})"
-
-        embed = {
-            "title": embed_title,
-            "description": description,
-            "color": 0x00FF00, # Green color
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        if not embed_chunk:
+            continue
 
         payload = {
             "username": "Stocklist Validator",
-            "embeds": [embed]
+            "embeds": embed_chunk
         }
 
         try:
-            response = requests.post(webhook_url, json=payload, timeout=10)
+            response = requests.post(webhook_url, json=payload, timeout=15)
             response.raise_for_status()
-            logging.info(f"Discord notification sent successfully (Part {i+1}/{num_messages}).")
+            logging.info(f"Discord notification sent successfully (Message {i+1}/{num_messages}).")
         except requests.exceptions.RequestException as e:
-            logging.error(f"Error sending Discord notification (Part {i+1}/{num_messages}): {e}")
+            logging.error(f"Error sending Discord notification (Message {i+1}/{num_messages}): {e}")
             if e.response is not None:
                 logging.error(f"Discord Response: {e.response.text}")
         except Exception as e:
-             logging.error(f"Unexpected error sending Discord notification (Part {i+1}/{num_messages}): {e}")
+             logging.error(f"Unexpected error sending Discord notification (Message {i+1}/{num_messages}): {e}")
 
         # Add a small delay between sending multiple messages if needed
         if num_messages > 1 and i < num_messages - 1:
             time.sleep(1)
+
 
 # --- Main Validation Logic ---
 
@@ -202,9 +245,10 @@ def run_validation():
             logging.warning(f"  - {item['symbol']} ({item['isin']})")
         logging.warning("Please check these entries in your stock_list.csv")
 
-    # 5. Send Valid List to Discord
+    # 5. Send Validation Results to Discord
     stocklist_webhook_url = config.get_discord_stocklist_webhook_url()
-    send_stocklist_to_discord(results['valid'], stocklist_webhook_url)
+    # Pass counts needed for the summary embed
+    send_stocklist_to_discord(results['valid'], invalid_count, len(stocks), stocklist_webhook_url)
 
     # Optionally save results to a file
     # output_file = os.path.join(config.settings['paths']['output_dir'], 'isin_validation_results.json')
