@@ -18,6 +18,7 @@ import requests # Ensure requests is imported
 from datetime import datetime, timedelta, timezone # Import timezone
 import time
 import json # Import json for discord payload
+import pytz # Import pytz for IST conversion
 
 # Import necessary functions from our modules
 import config
@@ -73,6 +74,15 @@ def validate_instrument_key(instrument_key, headers):
              # Not Found likely means invalid instrument key
              logging.warning(f"Validation failed for {instrument_key}. HTTP Status: 404 (Not Found)")
              return False
+        elif response.status_code == 400:
+             # Bad Request often indicates an invalid format or unrecognized key by the API logic
+             try:
+                 error_data = response.json()
+                 error_msg = error_data.get('errors', [{}])[0].get('message', response.text[:100])
+                 logging.warning(f"Validation failed for {instrument_key}. HTTP Status: 400 (Bad Request). Reason: {error_msg}")
+             except json.JSONDecodeError:
+                 logging.warning(f"Validation failed for {instrument_key}. HTTP Status: 400 (Bad Request). Response: {response.text[:200]}")
+             return False
         else:
             # Other HTTP errors
             logging.error(f"Validation HTTP error for {instrument_key}. Status: {response.status_code}, Response: {response.text[:200]}")
@@ -88,107 +98,164 @@ def validate_instrument_key(instrument_key, headers):
         logging.error(f"Unexpected error during validation for {instrument_key}: {e}")
         return False
 
-def send_stocklist_to_discord(valid_stocks, invalid_stocks_count, total_checked, webhook_url):
-    """Sends the list of valid stocks to a Discord webhook."""
+def send_stocklist_to_discord(valid_stocks, invalid_stocks, total_checked, duration_seconds, webhook_url):
+    """Sends validation results (valid & invalid lists) to Discord using embeds."""
     if not webhook_url:
         logging.warning("Discord stocklist webhook URL not configured. Skipping notification.")
         return
-    if not valid_stocks:
-        logging.info("No valid stocks found to report to Discord.")
-        # Optionally send a message indicating no valid stocks were found
-        # payload = { "username": "Stocklist Validator", "content": "No valid stocks found during validation." }
-        # requests.post(webhook_url, json=payload)
+
+    # --- Common Info ---
+    # Format duration
+    duration_str = f"{duration_seconds:.2f} seconds"
+    if duration_seconds > 60:
+        minutes = int(duration_seconds // 60)
+        seconds = int(duration_seconds % 60)
+        duration_str = f"{minutes}m {seconds}s"
+
+    # Get current time in IST and format conditionally
+    try:
+        ist_tz = pytz.timezone('Asia/Kolkata')
+        now_ist = datetime.now(ist_tz)
+        today_ist_date = now_ist.date()
+        if now_ist.date() == today_ist_date:
+            now_formatted_str = now_ist.strftime('Today at %I:%M %p')
+        else:
+            now_formatted_str = now_ist.strftime('%d %b %Y, %I:%M %p')
+    except Exception as e:
+        logging.error(f"Error getting/formatting IST time: {e}")
+        now_formatted_str = datetime.now(timezone.utc).strftime('%d %b %Y, %H:%M UTC')
+
+    username = "Stocklist Validator"
+    embeds_to_send = [] # Initialize list to hold all embeds
+
+    # --- Footer Text (Common for first embed of each type) ---
+    footer_text_common = f"Took {duration_str}\n{now_formatted_str}"
+
+    # --- Embed Generation ---
+
+    # 1. Valid Stocks Embed(s)
+    if valid_stocks:
+        logging.info(f"Generating embed(s) for {len(valid_stocks)} valid stocks...")
+        color_valid = 0x00FF00 # Green
+        max_chars = 4000
+        max_lines = 50
+        current_desc_valid = ""
+        part_num_valid = 1
+        lines_needed_valid = len(valid_stocks)
+        total_parts_valid = (lines_needed_valid + max_lines - 1) // max_lines
+        footer_valid = footer_text_common # Use common footer for the first valid embed
+
+        for i, stock in enumerate(valid_stocks):
+            line = f"{i+1}. {stock['symbol']} ({stock['isin']})\n"
+            if len(current_desc_valid) + len(line) > max_chars or \
+               current_desc_valid.count('\n') >= max_lines:
+                embed = {
+                    "title": f"Valid Stock List ({len(valid_stocks)} Total)" + (f" - Part {part_num_valid}/{total_parts_valid}" if total_parts_valid > 1 else ""),
+                    "description": current_desc_valid,
+                    "color": color_valid,
+                    "footer": {"text": footer_valid},
+                }
+                embeds_to_send.append(embed)
+                current_desc_valid = line
+                part_num_valid += 1
+                footer_valid = None # No footer for subsequent parts
+            else:
+                current_desc_valid += line
+
+        if current_desc_valid:
+             embed = {
+                "title": f"Valid Stock List ({len(valid_stocks)} Total)" + (f" - Part {part_num_valid}/{total_parts_valid}" if total_parts_valid > 1 else ""),
+                "description": current_desc_valid,
+                "color": color_valid,
+             }
+             if footer_valid:
+                  embed["footer"] = {"text": footer_valid}
+             embeds_to_send.append(embed)
+    else:
+        # If no valid stocks, add a placeholder message embed
+        logging.info("No valid stocks found.")
+        embed = {
+            "title": f"Stock List Validation Results",
+            "description": f"Checked {total_checked} stocks. No valid ISINs found.",
+            "color": 0xFFA500, # Orange
+            "footer": {"text": footer_text_common}, # Still show footer
+        }
+        embeds_to_send.append(embed)
+
+
+    # 2. Invalid Stocks Embed(s)
+    if invalid_stocks:
+        logging.info(f"Generating embed(s) for {len(invalid_stocks)} invalid stocks...")
+        color_invalid = 0xFF0000 # Red
+        max_chars = 4000
+        max_lines = 50
+        current_desc_invalid = ""
+        part_num_invalid = 1
+        lines_needed_invalid = len(invalid_stocks)
+        total_parts_invalid = (lines_needed_invalid + max_lines - 1) // max_lines
+        # Use common footer only if no valid stock embeds were added OR if valid embeds exist but had no footer space
+        footer_invalid = footer_text_common if not embeds_to_send or "footer" not in embeds_to_send[0] else None
+
+        for i, stock in enumerate(invalid_stocks):
+            line = f"{i+1}. {stock['symbol']} ({stock['isin']})\n" # Assuming same structure
+            if len(current_desc_invalid) + len(line) > max_chars or \
+               current_desc_invalid.count('\n') >= max_lines:
+                embed = {
+                    "title": f"Invalid Stock List ({len(invalid_stocks)} Total)" + (f" - Part {part_num_invalid}/{total_parts_invalid}" if total_parts_invalid > 1 else ""),
+                    "description": current_desc_invalid,
+                    "color": color_invalid,
+                    "footer": {"text": footer_invalid} if footer_invalid else None, # Add footer only if applicable
+                }
+                # Remove footer key entirely if None to avoid errors
+                if not footer_invalid: del embed["footer"]
+                embeds_to_send.append(embed)
+                current_desc_invalid = line
+                part_num_invalid += 1
+                footer_invalid = None # No footer for subsequent parts
+            else:
+                current_desc_invalid += line
+
+        if current_desc_invalid:
+             embed = {
+                "title": f"Invalid Stock List ({len(invalid_stocks)} Total)" + (f" - Part {part_num_invalid}/{total_parts_invalid}" if total_parts_invalid > 1 else ""),
+                "description": current_desc_invalid,
+                "color": color_invalid,
+             }
+             if footer_invalid:
+                  embed["footer"] = {"text": footer_invalid}
+             embeds_to_send.append(embed)
+
+
+    # --- Send the embed message(s) ---
+    if not embeds_to_send:
+        logging.warning("No embeds generated to send.")
         return
 
-    logging.info(f"Sending valid stock list ({len(valid_stocks)} stocks) to Discord...")
-
-    timestamp_now = datetime.now(timezone.utc)
-    color = 0x00FF00 # Green color for valid list
-
-    # --- Create Embed(s) for Valid Stocks ---
-    embeds_to_send = []
-    max_chars_per_description = 4000 # Discord description limit (approx)
-    max_lines_per_description = 50 # Keep it reasonable, maybe increase slightly
-
-    current_description = ""
-    part_num = 1
-    lines_needed = len(valid_stocks)
-    total_parts = (lines_needed + max_lines_per_description - 1) // max_lines_per_description
-
-    for i, stock in enumerate(valid_stocks):
-        line = f"{i+1}. {stock['symbol']} ({stock['isin']})\n"
-
-        # Check if adding the next line exceeds limits
-        if len(current_description) + len(line) > max_chars_per_description or \
-           current_description.count('\n') >= max_lines_per_description:
-
-            # Finalize the previous embed
-            detail_embed = {
-                "title": f"Valid Stock List ({len(valid_stocks)} Total)" + (f" - Part {part_num}/{total_parts}" if total_parts > 1 else ""),
-                "description": current_description,
-                "color": color,
-                "timestamp": timestamp_now.isoformat() # Add timestamp to the first part
-            }
-            embeds_to_send.append(detail_embed)
-
-            # Reset for next chunk
-            current_description = line
-            part_num += 1
-            timestamp_now = None # Only add timestamp to the first embed if splitting
-        else:
-            current_description += line
-
-    # Add the last chunk
-    if current_description:
-         detail_embed = {
-            "title": f"Valid Stock List ({len(valid_stocks)} Total)" + (f" - Part {part_num}/{total_parts}" if total_parts > 1 else ""),
-            "description": current_description,
-            "color": color,
-         }
-         # Add timestamp only if it's the first (or only) embed
-         if timestamp_now:
-              detail_embed["timestamp"] = timestamp_now.isoformat()
-         embeds_to_send.append(detail_embed)
-
-
-    # --- Send the message(s) ---
-    # Send embeds in chunks of 10 per message if necessary
+    logging.info(f"Sending {len(embeds_to_send)} embed(s) to Discord...")
     max_embeds_per_message = 10
     num_messages = (len(embeds_to_send) + max_embeds_per_message - 1) // max_embeds_per_message
-
     for i in range(num_messages):
         start_index = i * max_embeds_per_message
         end_index = start_index + max_embeds_per_message
         embed_chunk = embeds_to_send[start_index:end_index]
-
-        if not embed_chunk:
-            continue
-
-        payload = {
-            "username": "Stocklist Validator",
-            "embeds": embed_chunk
-        }
-
+        if not embed_chunk: continue
+        payload = {"username": username, "embeds": embed_chunk}
         try:
             response = requests.post(webhook_url, json=payload, timeout=15)
             response.raise_for_status()
-            logging.info(f"Discord notification sent successfully (Message {i+1}/{num_messages}).")
+            logging.info(f"Discord embed notification sent successfully (Message {i+1}/{num_messages}).")
         except requests.exceptions.RequestException as e:
-            logging.error(f"Error sending Discord notification (Message {i+1}/{num_messages}): {e}")
-            if e.response is not None:
-                logging.error(f"Discord Response: {e.response.text}")
+            logging.error(f"Error sending Discord embed notification (Message {i+1}/{num_messages}): {e}")
+            if e.response is not None: logging.error(f"Discord Response: {e.response.text}")
         except Exception as e:
-             logging.error(f"Unexpected error sending Discord notification (Message {i+1}/{num_messages}): {e}")
-
-        # Add a small delay between sending multiple messages if needed
-        if num_messages > 1 and i < num_messages - 1:
-            time.sleep(1)
-
+             logging.error(f"Unexpected error sending Discord embed notification (Message {i+1}/{num_messages}): {e}")
+        if num_messages > 1 and i < num_messages - 1: time.sleep(1)
 
 # --- Main Validation Logic ---
 
 def run_validation():
     """Loads stocks and validates their instrument keys."""
+    start_time = time.time() # Record start time
     logging.info("Starting ISIN validation process...")
 
     # 1. Get API Headers (includes getting/checking token)
@@ -210,6 +277,7 @@ def run_validation():
     results = {'valid': [], 'invalid': []}
 
     # 3. Iterate and Validate
+    validation_loop_start_time = time.time() # Time just the loop if preferred
     for i, stock in enumerate(stocks):
         symbol = stock['symbol']
         isin = stock['isin']
@@ -230,6 +298,10 @@ def run_validation():
 
         # Optional: Add a small delay between requests to avoid rate limiting
         time.sleep(0.2) # 200ms delay
+    validation_loop_end_time = time.time() # End time for the loop
+
+    # Calculate duration
+    total_duration_seconds = validation_loop_end_time - validation_loop_start_time
 
     # 4. Print Summary
     logging.info("-" * 50)
@@ -237,6 +309,7 @@ def run_validation():
     logging.info(f"Total Stocks Checked: {len(stocks)}")
     logging.info(f"Valid Instrument Keys: {valid_count}")
     logging.info(f"Invalid/Error Keys: {invalid_count}")
+    logging.info(f"Validation Duration: {total_duration_seconds:.2f} seconds") # Log duration
     logging.info("-" * 50)
 
     if results['invalid']:
@@ -247,8 +320,14 @@ def run_validation():
 
     # 5. Send Validation Results to Discord
     stocklist_webhook_url = config.get_discord_stocklist_webhook_url()
-    # Pass counts needed for the summary embed
-    send_stocklist_to_discord(results['valid'], invalid_count, len(stocks), stocklist_webhook_url)
+    # Pass both valid and invalid lists
+    send_stocklist_to_discord(
+        results['valid'],
+        results['invalid'], # Pass the list of invalid stock dicts
+        len(stocks),
+        total_duration_seconds,
+        stocklist_webhook_url
+    )
 
     # Optionally save results to a file
     # output_file = os.path.join(config.settings['paths']['output_dir'], 'isin_validation_results.json')

@@ -3,3 +3,4 @@ python-dotenv
 PyYAML
 pandas   # Will be needed for screener_logic
 numpy    # Often a dependency of pandas
+pytz     # Add this line

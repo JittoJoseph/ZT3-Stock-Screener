@@ -27,6 +27,7 @@ INSTRUMENT_TYPE = "EQ"
 
 def run_screener():
     """Main function to run the daily breakout screener."""
+    overall_start_time = time.time() # Start time for the whole process
     logging.info("="*50)
     logging.info("Starting Daily Breakout Screener")
     logging.info("="*50)
@@ -52,6 +53,8 @@ def run_screener():
     from_date_str = (datetime.now() - timedelta(days=LOOKBACK_DAYS)).strftime('%Y-%m-%d')
 
     # 3. Iterate, Fetch, Screen
+    logging.info("--- Starting Data Fetching and Screening ---")
+    screening_start_time = time.time() # Start time for the screening loop
     shortlisted_stocks = []
     total_stocks = len(stocks_to_scan)
     fetch_errors = 0
@@ -94,12 +97,16 @@ def run_screener():
         # Add a small delay between API calls to avoid rate limiting
         time.sleep(0.3) # 300ms delay
 
+    screening_end_time = time.time() # End time for the screening loop
+    screening_duration_seconds = screening_end_time - screening_start_time
+
     logging.info("="*50)
     logging.info("Screening Complete")
     logging.info(f"Total Stocks Processed: {total_stocks}")
     logging.info(f"Stocks Passing Criteria: {len(shortlisted_stocks)}")
     if fetch_errors > 0:
         logging.warning(f"Data Fetching Errors Encountered: {fetch_errors}")
+    logging.info(f"Screening Duration: {screening_duration_seconds:.2f} seconds") # Log duration
     logging.info("="*50)
 
     # 4. Generate Report
@@ -110,8 +117,11 @@ def run_screener():
         logging.info("No stocks passed screening, skipping HTML report generation.")
 
     # 5. Send Discord Notification
-    send_discord_notification(shortlisted_stocks)
+    send_discord_notification(shortlisted_stocks, screening_duration_seconds)
 
+    overall_end_time = time.time() # End time for the whole process
+    overall_duration_seconds = overall_end_time - overall_start_time
+    logging.info(f"Total Execution Time: {overall_duration_seconds:.2f} seconds")
     logging.info("Screener finished.")
     logging.info("="*50)
 
