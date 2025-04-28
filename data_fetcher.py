@@ -245,6 +245,9 @@ def fetch_historical_data(instrument_key, interval='day', to_date=None, from_dat
         return None
     except Exception as e:
         logging.error(f"An unexpected error occurred during data fetching for {instrument_key}: {e}")
+        # Add traceback logging here as well for fetch errors
+        import traceback
+        logging.error(traceback.format_exc())
         return None
 
 

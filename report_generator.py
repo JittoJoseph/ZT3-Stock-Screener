@@ -1,6 +1,7 @@
 import os
 from datetime import datetime
-import math # Import math for isnan check
+import math
+import numpy as np # Import numpy to check its types
 import config
 from utils.helpers import logging, get_report_filename, manage_reports
 
@@ -71,11 +72,11 @@ def generate_html_report(shortlisted_stocks, filename):
         }}
         th, td {{
             border: 1px solid #dee2e6;
-            padding: 10px 12px;
+            padding: 12px 15px; /* Slightly larger padding */
             text-align: left;
             vertical-align: middle;
             white-space: nowrap;
-            font-size: 1.2em; /* Increase font size for table cells on mobile */
+            font-size: 1.5em; /* Significantly larger font size for table cells on mobile */
         }}
         /* ... existing th, tr:nth-child(even) styles ... */
         th {{
@@ -184,35 +185,44 @@ def generate_html_report(shortlisted_stocks, filename):
 """
 
     for i, stock in enumerate(shortlisted_stocks):
-        isin_val = stock.get('isin', 'N/A')
-        volume_val = stock.get('volume') # Get volume value
+        volume_val = stock.get('volume')
 
-        # Refined volume formatting
-        volume_str = 'N/A' # Default to N/A
-        if isinstance(volume_val, (int, float)) and not math.isnan(volume_val):
+        isin_val = stock.get('isin', 'N/A')
+
+        # Refined volume formatting with explicit numpy type check
+        volume_str = 'N/A'
+        # Check for standard int/float AND numpy int/float types
+        if isinstance(volume_val, (int, float, np.integer, np.floating)) and not math.isnan(volume_val):
             try:
-                volume_str = f"{int(volume_val):,}" # Format as integer with commas
-            except (ValueError, TypeError):
-                volume_str = 'N/A' # Fallback if conversion fails
+                # Convert to standard Python int first to ensure comma formatting works
+                volume_int = int(volume_val)
+                volume_str = f"{volume_int:,}"
+            except (ValueError, TypeError) as fmt_err:
+                logging.error(f"  Error formatting numeric volume '{volume_val}': {fmt_err}")
+                volume_str = 'N/A' # Fallback if conversion/formatting fails
         elif isinstance(volume_val, str) and volume_val.isdigit():
              try:
-                 volume_str = f"{int(volume_val):,}" # Handle if volume is string digit
-             except (ValueError, TypeError):
+                 volume_str = f"{int(volume_val):,}"
+             except (ValueError, TypeError) as fmt_err:
+                 logging.error(f"  Error formatting string digit volume '{volume_val}': {fmt_err}")
                  volume_str = 'N/A'
+        else:
+            # Log if the value is neither a recognized number nor a string digit
+            logging.debug(f"  Volume value '{volume_val}' is not a recognized number or string digit. Displaying N/A.")
 
+        # Construct the table row string explicitly
+        row_html = "<tr>"
+        row_html += f"<td>{i+1}</td>"
+        row_html += f"<td>{stock.get('symbol', 'N/A')}</td>"
+        row_html += f"<td>{isin_val}</td>"
+        row_html += f"<td>{stock.get('close', 0.0):.2f}</td>"
+        row_html += f"<td>{stock.get('breakout_level', 0.0):.2f}</td>"
+        row_html += f"<td>{stock.get('volume_surge_pct', 0.0):.2f}%</td>"
+        row_html += f"<td>{stock.get('ema_20', 0.0):.2f}</td>"
+        row_html += f"<td>{volume_str}</td>" # Use the formatted string
+        row_html += "</tr>\n"
 
-        html_content += f"""
-                <tr>
-                    <td>{i+1}</td>
-                    <td>{stock.get('symbol', 'N/A')}</td>
-                    <td>{isin_val}</td>
-                    <td>{stock.get('close', 0.0):.2f}</td>
-                    <td>{stock.get('breakout_level', 0.0):.2f}</td>
-                    <td>{stock.get('volume_surge_pct', 0.0):.2f}%</td>
-                    <td>{stock.get('ema_20', 0.0):.2f}</td>
-                    <td>{volume_str}</td>
-                </tr>
-"""
+        html_content += row_html # Append the constructed row
 
     html_content += """
                 </tbody>
