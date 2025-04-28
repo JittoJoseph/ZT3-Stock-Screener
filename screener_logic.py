@@ -85,7 +85,8 @@ def apply_screening(df, symbol):
                 'breakout_level': breakout_level,
                 'volume_surge_pct': volume_surge_pct,
                 'ema_20': ema_value,
-                'timestamp': latest_candle['timestamp'] # Include timestamp for report/notification date
+                'timestamp': latest_candle['timestamp'], # Include timestamp for report/notification date
+                'volume': latest_candle['volume'] # Add latest volume
             }
         else:
             logging.info(f"[{symbol}] Did not pass all screening conditions.")
