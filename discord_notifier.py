@@ -24,13 +24,9 @@ def send_discord_notification(shortlisted_stocks, report_filename=None, duration
         logging.warning("Main Discord webhook URL (DISCORD_WEBHOOK_URL) not configured. Skipping notification.")
         return
 
-    # Get screening date (use today's date if list is empty)
     screening_date = datetime.now(timezone.utc)
-    if shortlisted_stocks and 'timestamp' in shortlisted_stocks[0]:
-        # Use the timestamp from the data if available, converting to local timezone might be better if server isn't UTC
-        # For simplicity, we'll use the date part of the timestamp from the data (assuming it's daily data)
-        screening_date = shortlisted_stocks[0]['timestamp']
-    screening_date_str = screening_date.strftime('%d %B %Y') # Format like 27 April 2025
+    # Format the date consistently for the title
+    screening_date_str = screening_date.strftime('%d %B %Y') # Format like 28 April 2024
 
     username = "ZT-3 Screener"
 
