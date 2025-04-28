@@ -3,17 +3,20 @@ import json
 from datetime import datetime, timezone
 import time
 import pytz # Import pytz for IST conversion
+import os # Import os for basename
 
 import config
 from utils.helpers import logging
 
-def send_discord_notification(shortlisted_stocks, duration_seconds=None):
+def send_discord_notification(shortlisted_stocks, report_filename=None, duration_seconds=None): # Add report_filename
     """
-    Sends a notification with the list of shortlisted stocks to the main Discord webhook.
+    Sends a notification with the list of shortlisted stocks to the main Discord webhook,
+    optionally attaching the HTML report file.
 
     Args:
         shortlisted_stocks (list): A list of dictionaries representing screened stocks.
                                    Expected keys: 'symbol', 'close', 'timestamp'.
+        report_filename (str, optional): Full path to the generated HTML report file.
         duration_seconds (float, optional): The time taken for the screening process.
     """
     webhook_url = config.get_discord_webhook_url()
@@ -137,6 +140,21 @@ def send_discord_notification(shortlisted_stocks, duration_seconds=None):
     max_embeds_per_message = 10
     num_messages = (len(embeds_to_send) + max_embeds_per_message - 1) // max_embeds_per_message
 
+    # Prepare file data only if report_filename is valid and exists
+    files_data = None
+    report_basename = None
+    if report_filename and os.path.exists(report_filename):
+        report_basename = os.path.basename(report_filename)
+        try:
+            # Note: File handle will be opened later, just prepare the structure
+            files_data = {'file': (report_basename, None, 'text/html')} # Placeholder for file handle
+            logging.info(f"Prepared report file '{report_basename}' for attachment.")
+        except Exception as e:
+            logging.error(f"Error preparing file data for {report_filename}: {e}")
+            files_data = None # Ensure it's None if preparation fails
+    elif report_filename:
+        logging.warning(f"Report file '{report_filename}' not found. Sending notification without attachment.")
+
     for i in range(num_messages):
         start_index = i * max_embeds_per_message
         end_index = start_index + max_embeds_per_message
@@ -150,20 +168,49 @@ def send_discord_notification(shortlisted_stocks, duration_seconds=None):
             "embeds": embed_chunk
         }
 
+        # Attach file only to the first message (i == 0)
+        current_files_data = None
+        if i == 0 and files_data:
+            try:
+                # Open the file handle just before sending
+                file_handle = open(report_filename, 'rb')
+                current_files_data = {'file': (report_basename, file_handle, 'text/html')}
+            except Exception as e:
+                logging.error(f"Error opening report file {report_filename} for sending: {e}")
+                current_files_data = None # Don't attach if opening fails
+
         try:
-            response = requests.post(webhook_url, json=payload, timeout=15)
+            if current_files_data:
+                # Send as multipart/form-data with file and payload_json
+                response = requests.post(
+                    webhook_url,
+                    files=current_files_data,
+                    data={'payload_json': json.dumps(payload)}, # Embeds go in payload_json
+                    timeout=30 # Increase timeout for file upload
+                )
+            else:
+                # Send as application/json (no file)
+                response = requests.post(webhook_url, json=payload, timeout=15)
+
             response.raise_for_status()
             logging.info(f"Discord notification sent successfully (Message {i+1}/{num_messages}).")
+
         except requests.exceptions.RequestException as e:
             logging.error(f"Error sending Discord notification (Message {i+1}/{num_messages}): {e}")
             if e.response is not None:
                 logging.error(f"Discord Response: {e.response.text}")
         except Exception as e:
              logging.error(f"Unexpected error sending Discord notification (Message {i+1}/{num_messages}): {e}")
+        finally:
+            # Ensure the file handle is closed if it was opened
+            if current_files_data and 'file' in current_files_data and current_files_data['file'][1]:
+                try:
+                    current_files_data['file'][1].close()
+                except Exception as e:
+                    logging.error(f"Error closing report file handle: {e}")
 
         if num_messages > 1 and i < num_messages - 1:
             time.sleep(1)
-
 
 # Example usage (for testing later)
 if __name__ == '__main__':
@@ -180,19 +227,39 @@ if __name__ == '__main__':
 
     dummy_duration = 125.67 # Example duration in seconds
 
-    logging.info("\n--- Testing Stocks Found Notification (with duration) ---")
+    # Create a dummy report file for testing attachment
+    dummy_report_dir = config.settings['paths']['report_dir']
+    os.makedirs(dummy_report_dir, exist_ok=True)
+    dummy_report_file = os.path.join(dummy_report_dir, "dummy_report_test.html")
+    try:
+        with open(dummy_report_file, "w") as f:
+            f.write("<html><body><h1>Test Report</h1></body></html>")
+        logging.info(f"Created dummy report file: {dummy_report_file}")
+    except Exception as e:
+        logging.error(f"Failed to create dummy report file: {e}")
+        dummy_report_file = None # Set to None if creation fails
+
+    logging.info("\n--- Testing Stocks Found Notification (with duration and attachment) ---")
     if not config.get_discord_webhook_url():
          logging.warning("Skipping test: DISCORD_WEBHOOK_URL not set in .env")
     else:
-        send_discord_notification(dummy_stocks_notify, dummy_duration)
+        send_discord_notification(dummy_stocks_notify, dummy_report_file, dummy_duration)
         logging.info("Test notification sent (check Discord).")
 
-    # Test case with no stocks
+    # Test case with no stocks (no attachment)
     logging.info("\n--- Testing No Stocks Notification (with duration) ---")
     if not config.get_discord_webhook_url():
          logging.warning("Skipping test: DISCORD_WEBHOOK_URL not set in .env")
     else:
-        send_discord_notification([], dummy_duration) # Pass duration even for no results
+        send_discord_notification([], None, dummy_duration) # Pass None for filename
         logging.info("Test 'No Results' notification sent (check Discord).")
+
+    # Clean up dummy file
+    if dummy_report_file and os.path.exists(dummy_report_file):
+        try:
+            os.remove(dummy_report_file)
+            logging.info(f"Removed dummy report file: {dummy_report_file}")
+        except Exception as e:
+            logging.error(f"Failed to remove dummy report file: {e}")
 
     logging.info("\nDiscord_notifier module test finished.")

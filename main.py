@@ -126,7 +126,7 @@ def run_screener():
         logging.info("No stocks passed screening, skipping HTML report generation.")
 
     # 5. Send Discord Notification
-    send_discord_notification(shortlisted_stocks, screening_duration_seconds)
+    send_discord_notification(shortlisted_stocks, report_filename, screening_duration_seconds)
 
     overall_end_time = time.time() # End time for the whole process
     overall_duration_seconds = overall_end_time - overall_start_time
