@@ -31,7 +31,7 @@ A Python application to screen Indian stocks listed on the NSE daily based on sp
 
     ```bash
     git clone https://github.com/JittoJoseph/ZT3-Stock-Screener.git
-    cd zt-3-screener
+    cd ZT3-Stock-Screener
     ```
 
 2.  **Install Dependencies:**
