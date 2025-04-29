@@ -50,6 +50,7 @@ A Python application to screen Indian stocks listed on the NSE daily based on sp
       UPSTOX_API_SECRET=your_api_secret
       UPSTOX_REDIRECT_URI=your_redirect_uri # e.g., http://127.0.0.1
       DISCORD_WEBHOOK_URL=your_discord_webhook_url
+      DISCORD_STOCKLIST_WEBHOOK_URL=another_discord_webhook_url
       ```
     - Ensure the `UPSTOX_REDIRECT_URI` matches the one configured in your Upstox developer app settings.
 
