@@ -178,10 +178,12 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=None)
     else:
         html_content += "<li>No specific failure reasons identified for this subset.</li>"
 
-    html_content += """
+    html_content += f"""
             </ul>
         </div>
+         """
 
+    html_content += f"""
         <div class="table-container">
             <table>
                 <thead>
