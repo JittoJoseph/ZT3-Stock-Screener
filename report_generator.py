@@ -255,7 +255,7 @@ def generate_html_report(shortlisted_stocks, filename):
              row_html += f"<td style='text-align: right;'>{ema_20_val:.2f}</td>" # Add EMA(20) value
              row_html += f"<td style='text-align: right;'>{ema_50_val:.2f}</td>" # Add EMA(50) value
              row_html += f"<td style='text-align: right;'>{stock.get('period_high', 0.0):.2f}</td>" # Use period_high
-             row_html += f"<td style='text-align: right;'>{stock.get('period_low', 0.0)::.2f}</td>"  # Use period_low
+             row_html += f"<td style='text-align: right;'>{stock.get('period_low', 0.0):.2f}</td>"  # Use period_low
              row_html += f"<td style='text-align: right;'>{volume_str}</td>"
              row_html += f"<td style='text-align: right;'>{avg_volume_str}</td>" # Add avg volume (50d)
              row_html += f"<td style='text-align: right;'>{volume_ratio_val:.2f}x</td>" # Add volume ratio (Corrected)
