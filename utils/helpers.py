@@ -131,14 +131,24 @@ def manage_reports():
     except Exception as e:
         logging.error(f"An error occurred during report management: {e}")
 
-def get_report_filename(prefix="report_"): # Add prefix argument with a default
-    """Generates a unique filename for the HTML report with an optional prefix."""
+def get_report_filename(prefix="report_", use_date_only=False):
+    """
+    Returns a full path filename for a report.
+    If use_date_only is True, includes only the date (YYYYMMDD) in the filename;
+    otherwise, includes date and time (YYYYMMDD_HH%M%S).
+    For example, if prefix is "success_report_":
+       use_date_only True -> success_report_20250430.html
+       use_date_only False -> success_report_20250430_211959.html
+    """
+    now = datetime.now()
+    if use_date_only:
+        date_str = now.strftime("%Y%m%d")
+    else:
+        date_str = now.strftime("%Y%m%d_%H%M%S")
     report_dir = config.settings['paths']['report_dir']
+    # Ensure report directory exists
     os.makedirs(report_dir, exist_ok=True)
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    # Use the prefix in the filename
-    filename = os.path.join(report_dir, f"{prefix}{timestamp}.html")
-    return filename
+    return os.path.join(report_dir, f"{prefix}{date_str}.html")
 
 
 # Example usage (for testing later)
