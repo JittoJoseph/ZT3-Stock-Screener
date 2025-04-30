@@ -12,7 +12,7 @@ if project_root not in sys.path:
 import config
 from utils.helpers import logging, load_stock_list, get_report_filename, manage_reports
 from data_fetcher import fetch_historical_data, get_access_token
-from screener_logic import apply_screening
+from screener_logic import apply_screening, TOTAL_RULES # Import TOTAL_RULES
 from report_generator import generate_html_report
 from failure_report import generate_failure_report # Import the new function
 from discord_notifier import send_discord_notification # Ensure this import is correct
@@ -125,7 +125,7 @@ def run_screener():
     logging.info("="*50)
     logging.info("Screening Complete")
     logging.info(f"Total Stocks Processed: {total_stocks}")
-    logging.info(f"Stocks Passing Criteria (6 rules): {len(shortlisted_stocks)}") # Updated text
+    logging.info(f"Stocks Passing Criteria ({TOTAL_RULES} rules): {len(shortlisted_stocks)}") # Use TOTAL_RULES
     if fetch_errors > 0:
         logging.warning(f"Data Fetching Errors Encountered: {fetch_errors}")
     logging.info(f"Screening Duration: {screening_duration_seconds:.2f} seconds")
@@ -142,13 +142,14 @@ def run_screener():
     else:
         logging.info("No stocks passed screening. Skipping success report generation.")
 
-    # Generate failure analysis report (shows stocks passing >= 5/6 rules)
+    # Generate failure analysis report (shows stocks passing >= TOTAL_RULES - 1 rules by default)
     logging.info("Attempting to generate failure analysis report...")
     temp_failure_filename = get_report_filename(prefix="failure_analysis_")
+    # Pass None for min_rules_passed to use the default (TOTAL_RULES - 1)
     failure_report_generated = generate_failure_report(
         all_screening_results,
         temp_failure_filename,
-        min_rules_passed=5 # Updated default check (5 out of 6)
+        min_rules_passed=None # Use default logic within the function
     )
     if failure_report_generated:
         failure_report_filename = temp_failure_filename
@@ -162,6 +163,7 @@ def run_screener():
         report_filename=report_filename, # Will be None if no stocks passed
         failure_report_filename=failure_report_filename, # Will be None if generation failed
         duration_seconds=screening_duration_seconds
+        # Consider passing TOTAL_RULES if needed in the notification text
     )
 
     overall_end_time = time.time() # End time for the whole process

@@ -19,11 +19,13 @@ def _format_volume(volume_val):
             return 'N/A'
     return 'N/A'
 
-# Get constants for headers
-AVG_VOLUME_LOOKBACK_REPORT = config.settings['screener'].get('lookback_period', 50) # Use lookback_period for consistency
-# Add EMA periods for headers
-EMA_PERIOD_LONG_REPORT = 50 # Assuming 50
-EMA_PERIOD_SHORT_REPORT = 20 # Assuming 20
+# --- Constants from config.settings ---
+screener_config = config.settings['screener'] # Get the screener sub-dictionary
+
+# Get constants for headers from config
+AVG_VOLUME_LOOKBACK_REPORT = screener_config.get('avg_volume_lookback', 50) # Use avg_volume_lookback
+EMA_PERIOD_LONG_REPORT = screener_config.get('ema_period_long', 50)
+EMA_PERIOD_SHORT_REPORT = screener_config.get('ema_period_short', 20)
 
 def generate_html_report(shortlisted_stocks, filename):
     if not shortlisted_stocks:
@@ -189,12 +191,12 @@ def generate_html_report(shortlisted_stocks, filename):
                         <th>Symbol</th>
                         <th>ISIN</th>
                         <th>Close (₹)</th>
-                        <th>EMA({EMA_PERIOD_SHORT_REPORT}) (₹)</th> <!-- Added EMA(20) header -->
-                        <th>EMA({EMA_PERIOD_LONG_REPORT}) (₹)</th> <!-- Added EMA(50) header -->
+                        <th>EMA({EMA_PERIOD_SHORT_REPORT}) (₹)</th>
+                        <th>EMA({EMA_PERIOD_LONG_REPORT}) (₹)</th>
                         <th>Period High (₹)</th>
                         <th>Period Low (₹)</th>
                         <th>Volume</th>
-                        <th>Avg Vol ({AVG_VOLUME_LOOKBACK_REPORT}d)</th> <!-- Updated header -->
+                        <th>Avg Vol ({AVG_VOLUME_LOOKBACK_REPORT}d)</th>
                         <th>Vol Ratio</th>
                     </tr>
                 </thead>
