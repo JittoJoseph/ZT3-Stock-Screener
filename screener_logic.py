@@ -6,122 +6,183 @@ import config # Import config module
 
 # --- Configuration ---
 LOOKBACK_PERIOD = config.settings['screener']['lookback_period']
-VOLUME_MULTIPLIER = config.settings['screener']['volume_multiplier']
-MIN_PRICE = config.settings['screener']['price_limits']['min_price']
-# Get max price settings from config
-MAX_PRICE = config.settings['screener']['price_limits']['max_price']
-ENABLE_MAX_PRICE_LIMIT = config.settings['screener']['price_limits']['enable_max_price_limit']
-EMA_PERIOD = 20 # Fixed EMA period
+# New Rules Constants from prompt
+MIN_CLOSE_PRICE = 10.0
+PRICE_DROP_FROM_HIGH_PERCENT_MAX = 10.0
+PRICE_DROP_FROM_HIGH_PERCENT_MIN = 0.0 # Explicitly 0 for the lower bound check
+PRICE_RISE_FROM_LOW_PERCENT_MIN = 100.0
+AVG_VOLUME_LOOKBACK = 20 # Days for average volume calculation
+VOLUME_SURGE_MULTIPLIER = 1.5 # From prompt: 1.5x
+
+# EMA_PERIOD is no longer needed for screening rules
+# VOLUME_MULTIPLIER from config is replaced by VOLUME_SURGE_MULTIPLIER
+# Price limits from config are replaced by MIN_CLOSE_PRICE
 
 def apply_screening(df, symbol):
     """
-    Applies the breakout, volume, price range, and trend conditions to the historical data.
+    Applies the 5 screening conditions and returns detailed results including
+    pass/fail status for each rule and the total number of rules passed.
 
     Args:
-        df (pd.DataFrame): DataFrame with historical candle data. Must contain
-                           ['timestamp', 'close', 'high', 'low', 'volume'].
-        symbol (str): The stock symbol (for logging purposes).
+        df (pd.DataFrame): DataFrame with historical candle data.
+        symbol (str): The stock symbol.
 
     Returns:
-        dict: A dictionary containing screening results if conditions are met,
-              otherwise None.
+        dict: A dictionary containing screening results (symbol, metrics,
+              pass/fail status for each rule, rules_passed_count),
+              including failure details.
     """
+    results = {
+        'symbol': symbol,
+        'close': None,
+        'period_high': None,
+        'period_low': None,
+        'volume': None,
+        'avg_volume_20d': None,
+        'timestamp': None,
+        'passed_rule1': False, # Price drop < 10%
+        'passed_rule2': False, # Price drop > 0%
+        'passed_rule3': False, # Price rise > 100%
+        'passed_rule4': False, # Close > 10
+        'passed_rule5': False, # Volume > 1.5x Avg Vol (20d)
+        'rules_passed_count': 0,
+        'metrics': {}, # Store calculated metrics for reporting
+        'failed_overall': True, # Assume failure initially
+        'reason': None # Reason for early exit or failure
+    }
+
+    # Check for sufficient data
+    required_candles = max(LOOKBACK_PERIOD, AVG_VOLUME_LOOKBACK + 1)
     if df is None or df.empty:
         logging.warning(f"[{symbol}] No data provided for screening.")
-        return None
+        results['reason'] = "No data"
+        return results # Return partial results
+
+    if len(df) < required_candles:
+         logging.warning(f"[{symbol}] Insufficient data ({len(df)} candles) for lookback/avg volume ({required_candles} required). Skipping.")
+         results['reason'] = f"Insufficient data ({len(df)} < {required_candles})"
+         return results # Return partial results
 
     try:
         # Ensure data is sorted by timestamp ascending
         df = df.sort_values('timestamp').reset_index(drop=True)
 
-        # Calculate required indicators
-        df['ema_20'] = df['close'].ewm(span=EMA_PERIOD, adjust=False).mean()
-        df['avg_vol_20'] = df['volume'].rolling(window=LOOKBACK_PERIOD).mean()
-        # Calculate highest close of the lookback period *excluding* the latest candle
-        df['highest_close_prev_20'] = df['close'].rolling(window=LOOKBACK_PERIOD).max().shift(1)
-
         # Get the latest candle's data
         latest_candle = df.iloc[-1]
+        latest_close = latest_candle['close']
+        latest_volume = latest_candle['volume']
+        latest_timestamp = latest_candle['timestamp']
 
-        # --- Apply Screening Conditions ---
-        # 1. Breakout Condition
-        breakout_level = latest_candle['highest_close_prev_20']
-        # Handle potential NaN in breakout_level before comparison
-        breakout_condition = not pd.isna(breakout_level) and latest_candle['close'] > breakout_level
+        # Calculate high and low over the lookback period *including* the latest candle
+        lookback_df = df.iloc[-LOOKBACK_PERIOD:]
+        period_high = lookback_df['high'].max()
+        period_low = lookback_df['low'].min()
 
-        # 2. Volume Condition
-        avg_volume = latest_candle['avg_vol_20']
-        # Handle potential NaN in avg_volume and latest_candle['volume']
-        volume_condition = (
-            not pd.isna(avg_volume) and avg_volume > 0 and
-            not pd.isna(latest_candle['volume']) and
-            latest_candle['volume'] > (avg_volume * VOLUME_MULTIPLIER)
-        )
+        # Calculate 20-day average volume (excluding today's volume)
+        avg_volume_df = df.iloc[-(AVG_VOLUME_LOOKBACK + 1):-1]
+        avg_volume_20d = avg_volume_df['volume'].mean()
 
-        # 3. Price Range Condition (Modified)
-        min_price_condition = latest_candle['close'] >= MIN_PRICE
-        # Apply max price limit only if enabled in config
-        if ENABLE_MAX_PRICE_LIMIT:
-            max_price_condition = latest_candle['close'] <= MAX_PRICE
-            price_range_condition = min_price_condition and max_price_condition
-            price_range_log = f"{MIN_PRICE} <= Close <= {MAX_PRICE}"
-        else:
-            # If max price limit is disabled, only check min price
-            price_range_condition = min_price_condition
-            price_range_log = f"Close >= {MIN_PRICE} (Max limit disabled)"
+        results.update({
+            'close': latest_close,
+            'period_high': period_high,
+            'period_low': period_low,
+            'volume': latest_volume,
+            'avg_volume_20d': avg_volume_20d,
+            'timestamp': latest_timestamp,
+        })
 
-        # 4. Trend Condition
-        ema_value = latest_candle['ema_20']
-        # Handle potential NaN in ema_value
-        trend_condition = not pd.isna(ema_value) and latest_candle['close'] > ema_value
+        # --- Handle potential NaN/Zero values ---
+        if pd.isna(latest_close) or pd.isna(latest_volume) or pd.isna(period_high) or pd.isna(period_low) or pd.isna(avg_volume_20d) or period_high == 0 or period_low == 0 or avg_volume_20d == 0:
+            logging.warning(f"[{symbol}] Skipping due to NaN/zero values in critical data (Close: {latest_close}, Vol: {latest_volume}, High: {period_high}, Low: {period_low}, AvgVol: {avg_volume_20d}).")
+            results['reason'] = "NaN/Zero in critical data"
+            return results # Return partial results
+
+        # --- Apply New Screening Conditions and Track Pass/Fail ---
+        rules_passed_count = 0
+
+        price_drop_pct = 100 * ((period_high - latest_close) / period_high)
+        price_rise_pct = 100 * (latest_close / period_low - 1)
+        volume_ratio = latest_volume / avg_volume_20d if avg_volume_20d > 0 else 0
+
+        results['metrics'] = {
+            'price_drop_pct': price_drop_pct,
+            'price_rise_pct': price_rise_pct,
+            'close_price': latest_close,
+            'volume': latest_volume,
+            'avg_volume_20d': avg_volume_20d,
+            'volume_ratio': volume_ratio
+        }
+
+        # Rule 1: Price drop < 10%
+        if price_drop_pct < PRICE_DROP_FROM_HIGH_PERCENT_MAX:
+            results['passed_rule1'] = True
+            rules_passed_count += 1
+
+        # Rule 2: Price drop > 0%
+        if price_drop_pct > PRICE_DROP_FROM_HIGH_PERCENT_MIN:
+             results['passed_rule2'] = True
+             # This rule is counted separately as per the logic update
+             rules_passed_count += 1
+
+        # Rule 3: Price rise > 100%
+        if price_rise_pct > PRICE_RISE_FROM_LOW_PERCENT_MIN:
+            results['passed_rule3'] = True
+            rules_passed_count += 1
+
+        # Rule 4: Current price > 10
+        if latest_close > MIN_CLOSE_PRICE:
+            results['passed_rule4'] = True
+            rules_passed_count += 1
+
+        # Rule 5: Volume > 1.5x Average Volume (20d)
+        if volume_ratio > VOLUME_SURGE_MULTIPLIER:
+            results['passed_rule5'] = True
+            rules_passed_count += 1
+
+        # Update total count (now out of 5)
+        results['rules_passed_count'] = rules_passed_count
 
         # --- Logging Detailed Checks ---
-        logging.debug(f"[{symbol}] Latest Close: {latest_candle['close']:.2f}")
-        # Handle NaN for breakout level logging
-        breakout_level_str = f"{breakout_level:.2f}" if not pd.isna(breakout_level) else "NaN"
-        logging.debug(f"[{symbol}] Breakout Level (Highest Close Prev {LOOKBACK_PERIOD}D): {breakout_level_str} -> {'PASS' if breakout_condition else 'FAIL'}")
+        logging.debug(f"[{symbol}] Latest Close: {latest_close:.2f}, Latest Vol: {latest_volume:,.0f}, Avg Vol ({AVG_VOLUME_LOOKBACK}D): {avg_volume_20d:,.0f}")
+        logging.debug(f"[{symbol}] Period High ({LOOKBACK_PERIOD}D): {period_high:.2f}, Period Low ({LOOKBACK_PERIOD}D): {period_low:.2f}")
+        logging.debug(f"[{symbol}] Rule 1 (% Drop < {PRICE_DROP_FROM_HIGH_PERCENT_MAX}%): {price_drop_pct:.2f}% -> {'PASS' if results['passed_rule1'] else 'FAIL'}")
+        logging.debug(f"[{symbol}] Rule 2 (% Drop > {PRICE_DROP_FROM_HIGH_PERCENT_MIN}%): {price_drop_pct:.2f}% -> {'PASS' if results['passed_rule2'] else 'FAIL'}")
+        logging.debug(f"[{symbol}] Rule 3 (% Rise > {PRICE_RISE_FROM_LOW_PERCENT_MIN}%): {price_rise_pct:.2f}% -> {'PASS' if results['passed_rule3'] else 'FAIL'}")
+        logging.debug(f"[{symbol}] Rule 4 (Close > {MIN_CLOSE_PRICE}): {latest_close:.2f} -> {'PASS' if results['passed_rule4'] else 'FAIL'}")
+        logging.debug(f"[{symbol}] Rule 5 (Vol > {VOLUME_SURGE_MULTIPLIER}x Avg): {volume_ratio:.2f}x -> {'PASS' if results['passed_rule5'] else 'FAIL'}")
+        logging.debug(f"[{symbol}] Total Rules Passed: {rules_passed_count}/5")
 
-        # Safely format volume log line, handling potential NaN
-        avg_vol_str = f"{avg_volume:.0f}" if not pd.isna(avg_volume) else "NaN"
-        req_vol_str = f"{(avg_volume * VOLUME_MULTIPLIER):.0f}" if not pd.isna(avg_volume) else "NaN"
-        latest_vol_str = f"{latest_candle['volume']}" if not pd.isna(latest_candle['volume']) else "NaN"
-        logging.debug(f"[{symbol}] Latest Volume: {latest_vol_str} | Avg Vol ({LOOKBACK_PERIOD}D): {avg_vol_str} | Required: > {req_vol_str} -> {'PASS' if volume_condition else 'FAIL'}")
 
-        logging.debug(f"[{symbol}] Price Range Check ({price_range_log}): {latest_candle['close']:.2f} -> {'PASS' if price_range_condition else 'FAIL'}")
-        # Handle NaN for EMA logging
-        ema_value_str = f"{ema_value:.2f}" if not pd.isna(ema_value) else "NaN"
-        logging.debug(f"[{symbol}] EMA({EMA_PERIOD}): {ema_value_str} | Close > EMA -> {'PASS' if trend_condition else 'FAIL'}")
+        # --- Final Check: All 5 conditions must be met for overall pass ---
+        all_rules_passed = (
+            results['passed_rule1'] and
+            results['passed_rule2'] and
+            results['passed_rule3'] and
+            results['passed_rule4'] and
+            results['passed_rule5']
+        )
 
-        # --- Final Check: All conditions must be met ---
-        if breakout_condition and volume_condition and price_range_condition and trend_condition:
-            logging.info(f"[{symbol}] Passed all screening conditions.")
-            # Ensure avg_volume is not NaN or zero before calculating surge percentage
-            if not pd.isna(avg_volume) and avg_volume > 0 and not pd.isna(latest_candle['volume']):
-                volume_surge_pct = ((latest_candle['volume'] / avg_volume) - 1) * 100
-            else:
-                volume_surge_pct = float('inf') # Or handle as appropriate, maybe 0 or None
-
-            latest_volume = latest_candle['volume']
-            # --- Remove Debug Log ---
-            # logging.debug(f"[{symbol}] Volume value being returned: {latest_volume} (Type: {type(latest_volume)})")
-            # --- End Remove Debug Log ---
-
-            return {
-                'symbol': symbol,
-                'close': latest_candle['close'],
-                'breakout_level': breakout_level,
-                'volume_surge_pct': volume_surge_pct,
-                'ema_20': ema_value,
-                'timestamp': latest_candle['timestamp'],
-                'volume': latest_volume
-            }
+        if all_rules_passed:
+            results['failed_overall'] = False
+            results['reason'] = "Passed all criteria"
+            logging.info(f"[{symbol}] Passed all 5 screening conditions.")
         else:
-            logging.info(f"[{symbol}] Did not pass all screening conditions.")
-            return None
+            results['failed_overall'] = True
+            failed_rules = []
+            if not results['passed_rule1']: failed_rules.append("Rule1(Drop%<10)")
+            if not results['passed_rule2']: failed_rules.append("Rule2(Drop%>0)")
+            if not results['passed_rule3']: failed_rules.append("Rule3(Rise%)")
+            if not results['passed_rule4']: failed_rules.append("Rule4(Price)")
+            if not results['passed_rule5']: failed_rules.append("Rule5(Vol Surge)")
+            results['reason'] = f"Failed: {', '.join(failed_rules)}"
+            logging.info(f"[{symbol}] Did not pass all screening conditions. Passed {results['rules_passed_count']}/5 rules.")
+
+        return results # Return the detailed results dictionary regardless of pass/fail
 
     except Exception as e:
         logging.error(f"[{symbol}] Error during screening logic application: {e}")
-        # Optionally log traceback for debugging
         import traceback
-        logging.error(traceback.format_exc()) # Add traceback for detailed error info
-        return None
+        logging.error(traceback.format_exc())
+        results['reason'] = f"Error: {e}"
+        results['failed_overall'] = True # Ensure marked as failed
+        return results # Return partial results with error
