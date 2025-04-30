@@ -5,8 +5,8 @@ screener:
   volume_multiplier: 1.5 #  Factor for volume surge check
   price_limits:
     min_price: 20.0
-    max_price: 1000.0
-    enable_max_price_limit: false
+    max_price: 1500.0
+    enable_max_price_limit: true
 
 paths:
   stock_list_file: "stock_list.csv"
