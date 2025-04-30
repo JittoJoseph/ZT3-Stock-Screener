@@ -27,64 +27,49 @@ def run_git_command(command_list, cwd=PROJECT_ROOT):
         logging.error(f"Git command failed: {e}")
         return False
 
-def publish_report(report_filepath):
+def publish_both_reports(success_filepath, failure_filepath):
     """
-    Copies the success HTML report to the docs folder as index.html,
-    commits the change, and pushes to GitHub.
-    
-    Args:
-        report_filepath (str): Full path to the success report.
+    Copies the success report to docs/index.html and the failure report to 
+    docs/failure-report.html (if they exist), then commits and pushes both changes
+    as a single commit.
     """
-    if not report_filepath or not os.path.exists(report_filepath):
-        logging.error(f"Report file not found: {report_filepath}")
-        return
+    files_to_commit = []
     
-    try:
-        shutil.copyfile(report_filepath, TARGET_FILEPATH)
-        logging.info(f"Copied '{report_filepath}' to '{TARGET_FILEPATH}'")
-    except Exception as e:
-        logging.error(f"Error copying file: {e}")
+    if success_filepath and os.path.exists(success_filepath):
+        try:
+            shutil.copyfile(success_filepath, TARGET_FILEPATH)
+            logging.info(f"Copied '{success_filepath}' to '{TARGET_FILEPATH}'")
+            files_to_commit.append(os.path.relpath(TARGET_FILEPATH, PROJECT_ROOT))
+        except Exception as e:
+            logging.error(f"Error copying success report: {e}")
+    else:
+        logging.warning("Success report file not found or not provided.")
+    
+    if failure_filepath and os.path.exists(failure_filepath):
+        try:
+            shutil.copyfile(failure_filepath, TARGET_FAILURE_FILEPATH)
+            logging.info(f"Copied '{failure_filepath}' to '{TARGET_FAILURE_FILEPATH}'")
+            files_to_commit.append(os.path.relpath(TARGET_FAILURE_FILEPATH, PROJECT_ROOT))
+        except Exception as e:
+            logging.error(f"Error copying failure report: {e}")
+    else:
+        logging.warning("Failure report file not found or not provided.")
+    
+    if not files_to_commit:
+        logging.error("No report files to commit.")
         return
 
-    commit_message = f"Update GitHub Pages report: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    if run_git_command(["git", "add", os.path.relpath(TARGET_FILEPATH, PROJECT_ROOT)]):
+    commit_message = f"Update GitHub Pages reports: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    if run_git_command(["git", "add"] + files_to_commit):
         if run_git_command(["git", "commit", "-m", commit_message]):
             if run_git_command(["git", "push"]):
-                logging.info("Report published successfully via GitHub Pages.")
+                logging.info("Reports published successfully via GitHub Pages in a single commit.")
             else:
-                logging.error("Git push failed.")
+                logging.error("Git push failed for reports.")
         else:
-            logging.error("Git commit failed.")
+            logging.error("Git commit failed for reports.")
     else:
-        logging.error("Git add failed.")
-
-def publish_failure_report(failure_filepath):
-    """
-    Copies the failure HTML report to the docs folder as failure-report.html,
-    commits the change, and pushes to GitHub.
-    """
-    if not failure_filepath or not os.path.exists(failure_filepath):
-        logging.error(f"Failure report file not found: {failure_filepath}")
-        return
-    
-    try:
-        shutil.copyfile(failure_filepath, TARGET_FAILURE_FILEPATH)
-        logging.info(f"Copied '{failure_filepath}' to '{TARGET_FAILURE_FILEPATH}'")
-    except Exception as e:
-        logging.error(f"Error copying failure report file: {e}")
-        return
-
-    commit_message = f"Update GitHub Pages failure report: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    if run_git_command(["git", "add", os.path.relpath(TARGET_FAILURE_FILEPATH, PROJECT_ROOT)]):
-        if run_git_command(["git", "commit", "-m", commit_message]):
-            if run_git_command(["git", "push"]):
-                logging.info("Failure report published successfully via GitHub Pages.")
-            else:
-                logging.error("Git push failed for failure report.")
-        else:
-            logging.error("Git commit failed for failure report.")
-    else:
-        logging.error("Git add failed for failure report.")
+        logging.error("Git add failed for reports.")
 
 if __name__ == "__main__":
     import sys
@@ -92,7 +77,5 @@ if __name__ == "__main__":
         logging.error("Usage: python report_host.py path/to/success_report.html [path/to/failure_report.html]")
     else:
         success_report = sys.argv[1]
-        publish_report(success_report)
-        if len(sys.argv) >= 3:
-            failure_report = sys.argv[2]
-            publish_failure_report(failure_report)
+        failure_report = sys.argv[2] if len(sys.argv) >= 3 else None
+        publish_both_reports(success_report, failure_report)
