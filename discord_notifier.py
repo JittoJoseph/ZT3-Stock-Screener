@@ -16,8 +16,8 @@ def send_discord_notification(
 ):
     """
     Sends a notification to the main Discord webhook.
-    If stocks are found, lists them and attaches the success report.
-    If no stocks are found, sends a 'No Results' message and attaches the failure report if available.
+    If stocks are found, lists them and attaches both success and failure reports (if available).
+    If no stocks are found, sends a 'No Results' message and attaches the failure report (if available).
 
     Args:
         shortlisted_stocks (list): List of stocks passing all criteria.
@@ -54,33 +54,62 @@ def send_discord_notification(
         now_formatted_str = datetime.now(timezone.utc).strftime('%d %b %Y, %H:%M UTC')
 
 
-    # Determine which file to attach (only one)
-    file_to_attach = None
-    report_type = "success" # Default
-    if shortlisted_stocks and report_filename and os.path.exists(report_filename):
-        file_to_attach = report_filename
-        logging.info(f"Will attach success report: {file_to_attach}")
-    elif not shortlisted_stocks and failure_report_filename and os.path.exists(failure_report_filename):
-        file_to_attach = failure_report_filename
-        report_type = "failure analysis"
-        logging.info(f"Will attach failure analysis report: {file_to_attach}")
-    elif report_filename and not os.path.exists(report_filename):
-         logging.warning(f"Success report file '{report_filename}' not found. Sending notification without attachment.")
-    elif failure_report_filename and not os.path.exists(failure_report_filename):
-         logging.warning(f"Failure report file '{failure_report_filename}' not found. Sending notification without attachment.")
+    # Determine which files to attach
+    files_to_attach = {} # Use a dictionary for multiple files {form_field_name: (filename, file_handle, content_type)}
+    success_report_attached = False
+    failure_report_attached = False
+
+    if shortlisted_stocks:
+        # Attach success report if it exists
+        if report_filename and os.path.exists(report_filename):
+            try:
+                report_basename = os.path.basename(report_filename)
+                files_to_attach['file_success'] = (report_basename, open(report_filename, 'rb'), 'text/html')
+                success_report_attached = True
+                logging.info(f"Prepared success report for attachment: {report_basename}")
+            except Exception as e:
+                logging.error(f"Error preparing success report {report_filename} for attachment: {e}")
+        elif report_filename:
+             logging.warning(f"Success report file '{report_filename}' not found. Cannot attach.")
+
+        # Attach failure report if it exists (even when success report is attached)
+        if failure_report_filename and os.path.exists(failure_report_filename):
+            try:
+                failure_report_basename = os.path.basename(failure_report_filename)
+                # Use a different field name if success report is also attached
+                field_name = 'file_failure' if success_report_attached else 'file'
+                files_to_attach[field_name] = (failure_report_basename, open(failure_report_filename, 'rb'), 'text/html')
+                failure_report_attached = True
+                logging.info(f"Prepared failure analysis report for attachment: {failure_report_basename}")
+            except Exception as e:
+                logging.error(f"Error preparing failure report {failure_report_filename} for attachment: {e}")
+        elif failure_report_filename:
+             logging.warning(f"Failure report file '{failure_report_filename}' not found. Cannot attach.")
+
+    else: # No shortlisted stocks
+        # Attach only failure report if it exists
+        if failure_report_filename and os.path.exists(failure_report_filename):
+            try:
+                failure_report_basename = os.path.basename(failure_report_filename)
+                files_to_attach['file'] = (failure_report_basename, open(failure_report_filename, 'rb'), 'text/html')
+                failure_report_attached = True
+                logging.info(f"Prepared failure analysis report for attachment: {failure_report_basename}")
+            except Exception as e:
+                logging.error(f"Error preparing failure report {failure_report_filename} for attachment: {e}")
+        elif failure_report_filename:
+             logging.warning(f"Failure report file '{failure_report_filename}' not found. Cannot attach.")
 
 
     # --- Handle No Results Case ---
     if not shortlisted_stocks:
         logging.info("No stocks passed screening. Sending 'No Results' notification.")
         description = "No stocks met the screening criteria today."
-        if file_to_attach and report_type == "failure analysis":
+        if failure_report_attached:
             description += "\n\nFailure analysis report attached (showing stocks that nearly passed)."
-        elif failure_report_filename and not file_to_attach: # File was specified but not found/attached
+        elif failure_report_filename and not failure_report_attached: # File was specified but not found/attached
              description += "\n\nFailure analysis report was generated but could not be attached."
         else: # No failure report generated or specified
              description += "\n\nNo failure analysis report was generated."
-
 
         footer_text = "Scan completed"
         if duration_str:
@@ -97,28 +126,15 @@ def send_discord_notification(
             }]
         }
 
-        # Prepare file data if attaching failure report
-        files_data = None
-        report_basename = None
-        if file_to_attach:
-            report_basename = os.path.basename(file_to_attach)
-            try:
-                files_data = {'file': (report_basename, None, 'text/html')} # Placeholder
-            except Exception as e:
-                logging.error(f"Error preparing file data for {file_to_attach}: {e}")
-                files_data = None
-
-        # Send the 'No Results' message (potentially with attachment)
+        # Send the 'No Results' message (potentially with failure attachment)
         try:
-            if files_data:
-                with open(file_to_attach, 'rb') as f_handle:
-                    current_files_data = {'file': (report_basename, f_handle, 'text/html')}
-                    response = requests.post(
-                        webhook_url,
-                        files=current_files_data,
-                        data={'payload_json': json.dumps(payload)},
-                        timeout=30
-                    )
+            if files_to_attach: # Should only contain failure report here
+                response = requests.post(
+                    webhook_url,
+                    files=files_to_attach, # Send the prepared file dictionary
+                    data={'payload_json': json.dumps(payload)},
+                    timeout=30
+                )
             else:
                 response = requests.post(webhook_url, json=payload, timeout=15)
 
@@ -129,13 +145,19 @@ def send_discord_notification(
             if e.response is not None: logging.error(f"Discord Response: {e.response.text}")
         except Exception as e:
              logging.error(f"Unexpected error sending Discord 'No Results' notification: {e}")
+        finally:
+            # Close any open file handles
+            for _, file_tuple in files_to_attach.items():
+                if file_tuple and len(file_tuple) > 1 and file_tuple[1]:
+                    try: file_tuple[1].close()
+                    except Exception as e_close: logging.error(f"Error closing report file handle: {e_close}")
         return # Exit after sending no results message
 
 
     # --- Stocks were found ---
     logging.info(f"Sending {len(shortlisted_stocks)} shortlisted stocks to Discord...")
 
-    # ... existing logic for creating embeds for shortlisted stocks ...
+    # --- Create Embeds ---
     embeds_to_send = []
     max_chars_per_description = 4000
     max_lines_per_description = 40
@@ -148,10 +170,28 @@ def send_discord_notification(
         footer_text_main = f"Took {duration_str}"
     footer_text_main += f"\n{now_formatted_str}"
 
+    # Add note about attachments to the first embed's description
+    attachment_note = ""
+    if success_report_attached and failure_report_attached:
+        attachment_note = "\n\nSuccess and Failure Analysis reports attached."
+    elif success_report_attached:
+        attachment_note = "\n\nSuccess report attached."
+    elif failure_report_attached: # Should only happen if success report failed to attach but failure one succeeded
+        attachment_note = "\n\nFailure Analysis report attached."
+
+    first_embed = True
     for i, stock in enumerate(shortlisted_stocks):
         line = f"**{stock.get('symbol', 'N/A')}** - ₹{stock.get('close', 0.00):.2f}\n"
-        if len(current_description) + len(line) > max_chars_per_description or \
-           current_description.count('\n') >= max_lines_per_description:
+        # Check if adding the line (and potentially the attachment note) exceeds limits
+        projected_len = len(current_description) + len(line) + (len(attachment_note) if first_embed else 0)
+        projected_lines = current_description.count('\n') + 1
+
+        if projected_len > max_chars_per_description or projected_lines >= max_lines_per_description:
+            # Finalize current embed
+            if first_embed:
+                current_description += attachment_note # Add note before finalizing
+                first_embed = False # Note added
+
             embed = {
                 "title": f"🚀 ZT-3 Breakout Alert - {screening_date_str}" + (f" (Part {part_num}/{total_parts})" if total_parts > 1 else ""),
                 "description": current_description,
@@ -159,40 +199,37 @@ def send_discord_notification(
                 "footer": {"text": footer_text_main},
             }
             embeds_to_send.append(embed)
+            # Start new embed
             current_description = line
             part_num += 1
-            footer_text_main = None
+            footer_text_main = None # Footer only on the first part
         else:
             current_description += line
+
+    # Add the last embed
     if current_description:
-         embed = {
-            "title": f"🚀 ZT-3 Breakout Alert - {screening_date_str}" + (f" (Part {part_num}/{total_parts})" if total_parts > 1 else ""),
-            "description": current_description,
-            "color": 0x2ECC71,
-         }
-         if footer_text_main:
-              embed["footer"] = {"text": footer_text_main}
-         embeds_to_send.append(embed)
+        if first_embed: # Handle case where all stocks fit in one embed
+            current_description += attachment_note
+            first_embed = False
+
+        embed = {
+           "title": f"🚀 ZT-3 Breakout Alert - {screening_date_str}" + (f" (Part {part_num}/{total_parts})" if total_parts > 1 else ""),
+           "description": current_description,
+           "color": 0x2ECC71,
+        }
+        if footer_text_main: # Add footer if this is the only part
+             embed["footer"] = {"text": footer_text_main}
+        embeds_to_send.append(embed)
 
 
-    # --- Send the message(s) with potential success report attachment ---
+    # --- Send the message(s) with attachments ---
     max_embeds_per_message = 10
     num_messages = (len(embeds_to_send) + max_embeds_per_message - 1) // max_embeds_per_message
 
-    # Prepare file data only if attaching success report
-    files_data = None
-    report_basename = None
-    if file_to_attach and report_type == "success": # Check report type here
-        report_basename = os.path.basename(file_to_attach)
-        try:
-            files_data = {'file': (report_basename, None, 'text/html')} # Placeholder
-            logging.info(f"Prepared success report file '{report_basename}' for attachment.")
-        except Exception as e:
-            logging.error(f"Error preparing file data for {file_to_attach}: {e}")
-            files_data = None
+    # Attach files only to the first message
+    files_for_first_message = files_to_attach if files_to_attach else None
 
     for i in range(num_messages):
-        # ... existing chunking logic ...
         start_index = i * max_embeds_per_message
         end_index = start_index + max_embeds_per_message
         embed_chunk = embeds_to_send[start_index:end_index]
@@ -200,22 +237,13 @@ def send_discord_notification(
 
         payload = { "username": username, "embeds": embed_chunk }
 
-        # Attach success report file only to the first message
-        current_files_data = None
-        if i == 0 and files_data: # files_data is only prepared for success reports now
-            try:
-                file_handle = open(file_to_attach, 'rb')
-                current_files_data = {'file': (report_basename, file_handle, 'text/html')}
-            except Exception as e:
-                logging.error(f"Error opening success report file {file_to_attach} for sending: {e}")
-                current_files_data = None
+        current_files = files_for_first_message if i == 0 else None
 
         try:
-            # ... existing sending logic (with or without file) ...
-            if current_files_data:
+            if current_files:
                 response = requests.post(
                     webhook_url,
-                    files=current_files_data,
+                    files=current_files, # Send the prepared file dictionary
                     data={'payload_json': json.dumps(payload)},
                     timeout=30
                 )
@@ -225,16 +253,17 @@ def send_discord_notification(
             logging.info(f"Discord notification sent successfully (Message {i+1}/{num_messages}).")
 
         except requests.exceptions.RequestException as e:
-            # ... existing error handling ...
             logging.error(f"Error sending Discord notification (Message {i+1}/{num_messages}): {e}")
             if e.response is not None: logging.error(f"Discord Response: {e.response.text}")
         except Exception as e:
              logging.error(f"Unexpected error sending Discord notification (Message {i+1}/{num_messages}): {e}")
         finally:
-            # ... existing file closing logic ...
-            if current_files_data and 'file' in current_files_data and current_files_data['file'][1]:
-                try: current_files_data['file'][1].close()
-                except Exception as e: logging.error(f"Error closing report file handle: {e}")
+            # Close file handles only after the first message is sent (or attempted)
+            if i == 0 and files_for_first_message:
+                for _, file_tuple in files_for_first_message.items():
+                    if file_tuple and len(file_tuple) > 1 and file_tuple[1]:
+                        try: file_tuple[1].close()
+                        except Exception as e_close: logging.error(f"Error closing report file handle: {e_close}")
 
         if num_messages > 1 and i < num_messages - 1:
             time.sleep(1)
@@ -265,14 +294,14 @@ if __name__ == '__main__':
         dummy_success_report_file = None
         dummy_failure_report_file = None
 
-    logging.info("\n--- Testing Stocks Found Notification (with duration and success attachment) ---")
+    logging.info("\n--- Testing Stocks Found Notification (with duration and BOTH attachments) ---") # Updated test description
     if not config.get_discord_webhook_url():
          logging.warning("Skipping test: DISCORD_WEBHOOK_URL not set in .env")
-    elif dummy_success_report_file:
-        send_discord_notification(dummy_stocks_notify, dummy_success_report_file, None, dummy_duration) # Pass success file
+    elif dummy_success_report_file and dummy_failure_report_file: # Check both files exist
+        send_discord_notification(dummy_stocks_notify, dummy_success_report_file, dummy_failure_report_file, dummy_duration) # Pass both files
         logging.info("Test notification sent (check Discord).")
     else:
-        logging.warning("Skipping success attachment test: dummy file not created.")
+        logging.warning("Skipping dual attachment test: one or both dummy files not created.")
 
 
     # Test case with no stocks (with failure attachment)

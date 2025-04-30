@@ -13,17 +13,17 @@ LOOKBACK_PERIOD = config.settings['screener']['lookback_period']
 MIN_CLOSE_PRICE = 10.0
 PRICE_DROP_FROM_HIGH_PERCENT_MAX = 10.0
 PRICE_DROP_FROM_HIGH_PERCENT_MIN = 0.0
-PRICE_RISE_FROM_LOW_PERCENT_MIN = 100.0
+EMA_PERIOD = 20 # Added EMA Period
 AVG_VOLUME_LOOKBACK = 20
-VOLUME_SURGE_MULTIPLIER = 1.5
+VOLUME_SURGE_MULTIPLIER = 2.0 # Updated to 2.0
 
-# Define rule names for clarity in the report (5 rules)
+# Define rule names for clarity in the report (5 rules) - Updated Rule 5
 RULE_NAMES = {
     'passed_rule1': f'Drop% < {PRICE_DROP_FROM_HIGH_PERCENT_MAX}%',
     'passed_rule2': f'Drop% > {PRICE_DROP_FROM_HIGH_PERCENT_MIN}%',
-    'passed_rule3': f'Rise% > {PRICE_RISE_FROM_LOW_PERCENT_MIN}%',
+    'passed_rule3': f'Close > EMA({EMA_PERIOD})',
     'passed_rule4': f'Close > ₹{MIN_CLOSE_PRICE}',
-    'passed_rule5': f'Vol > {VOLUME_SURGE_MULTIPLIER}x Avg({AVG_VOLUME_LOOKBACK}d)'
+    'passed_rule5': f'Vol > {VOLUME_SURGE_MULTIPLIER}x Avg({AVG_VOLUME_LOOKBACK}d)' # Updated Rule 5 Name
 }
 
 def _format_volume(volume_val):
@@ -89,9 +89,9 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=4): #
                 short_name = rule_desc.split('(')[0].strip() # General short name
                 if rule_key == 'passed_rule1': short_name = "Drop%<10"
                 elif rule_key == 'passed_rule2': short_name = "Drop%>0"
-                elif rule_key == 'passed_rule3': short_name = "Rise%>100"
+                elif rule_key == 'passed_rule3': short_name = f"Close>EMA{EMA_PERIOD}" # New short name
                 elif rule_key == 'passed_rule4': short_name = "Price>10"
-                elif rule_key == 'passed_rule5': short_name = "Vol Surge"
+                elif rule_key == 'passed_rule5': short_name = f"Vol>{VOLUME_SURGE_MULTIPLIER}x" # Updated short name
                 failed_rules_list.append(short_name)
         stock['failed_rules_display'] = ', '.join(failed_rules_list) if failed_rules_list else "None"
 
@@ -166,6 +166,7 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=4): #
                         <th>#</th>
                         <th>Symbol</th>
                         <th>Close (₹)</th>
+                        <th>EMA({EMA_PERIOD}) (₹)</th> <!-- Added EMA column header -->
                         <th>Period High (₹)</th>
                         <th>Period Low (₹)</th>
                         <th>Volume</th>
@@ -174,7 +175,6 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=4): #
                         <th>Rules Passed</th>
                         <th>Failed Rule(s)</th>
                         <th>Drop %</th>
-                        <th>Rise %</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -188,6 +188,7 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=4): #
                         <td>{i+1}</td>
                         <td>{stock.get('symbol', 'N/A')}</td>
                         <td class="numeric">{stock.get('close', 0.0):.2f}</td>
+                        <td class="numeric">{metrics.get('ema_20', 0.0):.2f}</td> <!-- Added EMA value -->
                         <td class="numeric">{stock.get('period_high', 0.0):.2f}</td>
                         <td class="numeric">{stock.get('period_low', 0.0):.2f}</td>
                         <td class="numeric">{_format_volume(stock.get('volume'))}</td>
@@ -196,7 +197,6 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=4): #
                         <td class="center pass">{stock.get('rules_passed_count', 0)}/5</td>
                         <td class="fail">{stock.get('failed_rules_display', 'N/A')}</td>
                         <td class="numeric">{metrics.get('price_drop_pct', 0.0):.2f}%</td>
-                        <td class="numeric">{metrics.get('price_rise_pct', 0.0):.2f}%</td>
                     </tr>
 """
 
