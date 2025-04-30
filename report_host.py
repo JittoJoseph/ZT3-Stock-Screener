@@ -45,40 +45,18 @@ def sync_reports_to_docs():
 
 def publish_both_reports(success_filepath, failure_filepath):
     """
-    Copies the provided success and failure reports, then syncs all report files
-    into the docs folder before committing & pushing all changes.
+    Publishes the reports by syncing the reports folder into the docs folder
+    and updating the landing page. (Removed the copying of individual reports 
+    as generic index.html and failure-report.html.)
     """
-    files_to_commit = []
-    
-    if success_filepath and os.path.exists(success_filepath):
-        try:
-            shutil.copyfile(success_filepath, TARGET_FILEPATH)
-            logging.info(f"Copied '{success_filepath}' to '{TARGET_FILEPATH}'")
-            files_to_commit.append(os.path.relpath(TARGET_FILEPATH, PROJECT_ROOT))
-        except Exception as e:
-            logging.error(f"Error copying success report: {e}")
-    else:
-        logging.warning("Success report file not found or not provided.")
-    
-    if failure_filepath and os.path.exists(failure_filepath):
-        try:
-            shutil.copyfile(failure_filepath, TARGET_FAILURE_FILEPATH)
-            logging.info(f"Copied '{failure_filepath}' to '{TARGET_FAILURE_FILEPATH}'")
-            files_to_commit.append(os.path.relpath(TARGET_FAILURE_FILEPATH, PROJECT_ROOT))
-        except Exception as e:
-            logging.error(f"Error copying failure report: {e}")
-    else:
-        logging.warning("Failure report file not found or not provided.")
-    
-    if not files_to_commit:
-        logging.error("No report files to commit.")
-        return
-
-    # --- New: Sync all report files from reports to docs ---
+    # Removed code that copied success_filepath to TARGET_FILEPATH and failure_filepath to TARGET_FAILURE_FILEPATH.
+    # Instead, we simply sync and update landing page.
     sync_reports_to_docs()
+    update_landing_page()
+    
+    # After syncing, commit & push updated docs content.
     synced_files = glob.glob(os.path.join(DOCS_DIR, "*.html"))
     files_to_commit = [os.path.relpath(f, PROJECT_ROOT) for f in synced_files]
-    
     commit_message = f"Update GitHub Pages reports: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     if run_git_command(["git", "add"] + files_to_commit):
         if run_git_command(["git", "commit", "-m", commit_message]):
@@ -90,8 +68,6 @@ def publish_both_reports(success_filepath, failure_filepath):
             logging.error("Git commit failed for reports.")
     else:
         logging.error("Git add failed for reports.")
-
-    update_landing_page()
 
 def update_landing_page():
     """
