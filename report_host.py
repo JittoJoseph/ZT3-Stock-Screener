@@ -77,56 +77,46 @@ def publish_both_reports(success_filepath, failure_filepath):
 
 def update_landing_page():
     """
-    Creates/updates index.html as a minimalist landing page.
-    It scans for success report files generated daily that include the trading date (last candle date)
-    in their filename (format: success_report_YYYYMMDD_HHMMSS.html).
-    It groups reports by trading day, picks the latest report per day,
-    and then displays links for the last 5 trading days.
-    Any report older than 5 days is dropped.
+    Creates/updates index.html as a landing page.
+    It scans for success report files named as success_report_YYYYMMDD.html,
+    groups them by trading date, and displays links for the last 5 trading days.
+    It also includes a link for the most recent failure report (failure_report_YYYYMMDD.html).
+    Any report older than 5 trading days is ignored.
     """
     report_dir = config.settings['paths']['report_dir']
-    # Get list of success report files (assume naming: success_report_YYYYMMDD_*.html)
-    success_files = glob.glob(os.path.join(report_dir, "success_report_*.html"))
+    # Expect success reports to be named in pattern: success_report_YYYYMMDD.html
+    success_files = glob.glob(os.path.join(report_dir, "success_report_????????.html"))
     
-    # Build a dict keyed by trading date (YYYYMMDD) and value the latest file for that day
     daily_reports = {}
     for filepath in success_files:
-        # Example filename: success_report_20250430_211959.html
+        # Filename example: success_report_20250430.html
         basename = os.path.basename(filepath)
         try:
-            parts = basename.split('_')
-            trading_date = parts[2]  # e.g. "20250430"
-            # Use trading_date as key and compare filenames (or modification times) to select latest
-            if trading_date not in daily_reports:
-                daily_reports[trading_date] = filepath
-            else:
-                # Optionally, select the file with the highest timestamp (or latest mod time)
-                if os.path.getmtime(filepath) > os.path.getmtime(daily_reports[trading_date]):
-                    daily_reports[trading_date] = filepath
+            trading_date = basename.split('_')[2].split('.')[0]  # "20250430"
+            daily_reports[trading_date] = filepath  # Only one per day; later runs overwrite earlier ones.
         except Exception as e:
             logging.warning(f"Could not parse trading date from filename {basename}: {e}")
             continue
 
-    # Sort trading days descending and keep last 5 (if available)
+    # Sort descending and pick the last 5 trading days
     sorted_days = sorted(daily_reports.keys(), reverse=True)[:5]
     links_html = ""
     for day in sorted_days:
         report_file = os.path.basename(daily_reports[day])
-        # Format link text as trading date in a friendly format
         trading_date_obj = datetime.strptime(day, "%Y%m%d")
         link_text = trading_date_obj.strftime("%d %b %Y")
         links_html += f'<li><a href="{report_file}">{link_text} Success Report</a></li>\n'
 
-    # Also include today's failure report if available (assume file named failure_report_YYYYMMDD.html)
-    failure_files = glob.glob(os.path.join(report_dir, "failure_report_*.html"))
+    # Get latest failure report in pattern: failure_report_YYYYMMDD.html
+    failure_files = glob.glob(os.path.join(report_dir, "failure_report_????????.html"))
     latest_failure = None
     if failure_files:
-        latest_failure = max(failure_files, key=os.path.getmtime)
+        # Since filename is based on date, take the max date
+        latest_failure = max(failure_files, key=lambda f: f.split('_')[2].split('.')[0])
     failure_link = ""
     if latest_failure:
-        failure_link = f'<p><a href="{os.path.basename(latest_failure)}">Today\'s Failure Analysis</a></p>'
+        failure_link = f'<p><a href="{os.path.basename(latest_failure)}">Latest Failure Analysis</a></p>'
 
-    # Build landing page HTML
     landing_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -153,7 +143,6 @@ def update_landing_page():
   </div>
 </body>
 </html>"""
-
     index_filepath = os.path.join(report_dir, "index.html")
     with open(index_filepath, "w", encoding="utf-8") as f:
         f.write(landing_html)

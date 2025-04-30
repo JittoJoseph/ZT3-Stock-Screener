@@ -133,11 +133,12 @@ def run_screener():
     logging.info("="*50)
 
     # 4. Generate Reports
-    report_filename = get_report_filename(prefix="success_report_")
+    # Use get_report_filename so that success reports are named as "success_report_YYYYMMDD.html"
+    report_filename = get_report_filename(prefix="success_report_", use_date_only=True)
     generate_html_report(shortlisted_stocks, report_filename)
     logging.info(f"Success report generated: {report_filename}")
 
-    temp_failure_filename = get_report_filename(prefix="failure_analysis_")
+    temp_failure_filename = get_report_filename(prefix="failure_report_", use_date_only=True)
     failure_report_generated = generate_failure_report(
         all_screening_results,
         temp_failure_filename,
