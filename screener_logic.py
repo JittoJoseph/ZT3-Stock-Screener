@@ -12,7 +12,8 @@ PRICE_DROP_FROM_HIGH_PERCENT_MIN = 0.0
 EMA_PERIOD_LONG = 50 # Renamed for clarity
 EMA_PERIOD_SHORT = 20 # New short EMA period
 AVG_VOLUME_LOOKBACK = 50 # 50
-VOLUME_SURGE_MULTIPLIER = 2.0
+VOLUME_SURGE_MULTIPLIER_MIN = 2.0
+VOLUME_SURGE_MULTIPLIER_MAX = 2.5
 
 def apply_screening(df, symbol):
     """
@@ -37,12 +38,12 @@ def apply_screening(df, symbol):
         'volume': None,
         'avg_volume_50d': None,
         'timestamp': None,
-        'passed_rule1': False, # Price drop < 10% (50d High)
-        'passed_rule2': False, # Price drop > 0% (50d High)
-        'passed_rule3': False, # Close > EMA(50)
-        'passed_rule4': False, # Close > 25
-        'passed_rule5': False, # Volume > 2.0x Avg Vol (50d)
-        'passed_rule6': False, # EMA(20) > EMA(50) - New Rule
+        'passed_rule1': False,
+        'passed_rule2': False,
+        'passed_rule3': False,
+        'passed_rule4': False,
+        'passed_rule5': False,
+        'passed_rule6': False,
         'rules_passed_count': 0,
         'metrics': {},
         'failed_overall': True,
@@ -134,8 +135,8 @@ def apply_screening(df, symbol):
             results['passed_rule4'] = True
             rules_passed_count += 1
 
-        # Rule 5: Volume > 2.0x Average Volume (50d)
-        if volume_ratio > VOLUME_SURGE_MULTIPLIER:
+        # Rule 5: Volume Ratio between 2.0x and 2.5x Average Volume (50d) - Updated Check
+        if VOLUME_SURGE_MULTIPLIER_MIN < volume_ratio < VOLUME_SURGE_MULTIPLIER_MAX:
             results['passed_rule5'] = True
             rules_passed_count += 1
 
@@ -155,8 +156,8 @@ def apply_screening(df, symbol):
         logging.debug(f"[{symbol}] Rule 2 (% Drop > {PRICE_DROP_FROM_HIGH_PERCENT_MIN}%): {price_drop_pct:.2f}% -> {'PASS' if results['passed_rule2'] else 'FAIL'}")
         logging.debug(f"[{symbol}] Rule 3 (Close > EMA({EMA_PERIOD_LONG})): {latest_close:.2f} > {latest_ema_long:.2f} -> {'PASS' if results['passed_rule3'] else 'FAIL'}")
         logging.debug(f"[{symbol}] Rule 4 (Close > {MIN_CLOSE_PRICE}): {latest_close:.2f} -> {'PASS' if results['passed_rule4'] else 'FAIL'}")
-        logging.debug(f"[{symbol}] Rule 5 (Vol > {VOLUME_SURGE_MULTIPLIER}x Avg): {volume_ratio:.2f}x -> {'PASS' if results['passed_rule5'] else 'FAIL'}")
-        logging.debug(f"[{symbol}] Rule 6 (EMA({EMA_PERIOD_SHORT}) > EMA({EMA_PERIOD_LONG})): {latest_ema_short:.2f} > {latest_ema_long:.2f} -> {'PASS' if results['passed_rule6'] else 'FAIL'}") # Log Rule 6
+        logging.debug(f"[{symbol}] Rule 5 ({VOLUME_SURGE_MULTIPLIER_MIN}x < Vol Ratio < {VOLUME_SURGE_MULTIPLIER_MAX}x): {volume_ratio:.2f}x -> {'PASS' if results['passed_rule5'] else 'FAIL'}") # Updated Rule 5 log
+        logging.debug(f"[{symbol}] Rule 6 (EMA({EMA_PERIOD_SHORT}) > EMA({EMA_PERIOD_LONG})): {latest_ema_short:.2f} > {latest_ema_long:.2f} -> {'PASS' if results['passed_rule6'] else 'FAIL'}")
         logging.debug(f"[{symbol}] Total Rules Passed: {rules_passed_count}/6") # Updated total
 
 
@@ -181,7 +182,7 @@ def apply_screening(df, symbol):
             if not results['passed_rule2']: failed_rules.append("Rule2(Drop%>0)")
             if not results['passed_rule3']: failed_rules.append(f"Rule3(Close>EMA{EMA_PERIOD_LONG})")
             if not results['passed_rule4']: failed_rules.append(f"Rule4(Price>{MIN_CLOSE_PRICE})")
-            if not results['passed_rule5']: failed_rules.append(f"Rule5(Vol>{VOLUME_SURGE_MULTIPLIER}x)")
+            if not results['passed_rule5']: failed_rules.append(f"Rule5({VOLUME_SURGE_MULTIPLIER_MIN}x<Vol<{VOLUME_SURGE_MULTIPLIER_MAX}x)") # Updated failure reason text
             if not results['passed_rule6']: failed_rules.append(f"Rule6(EMA{EMA_PERIOD_SHORT}>EMA{EMA_PERIOD_LONG})") # Add rule 6 failure reason
             results['reason'] = f"Failed: {', '.join(failed_rules)}"
             logging.info(f"[{symbol}] Did not pass all screening conditions. Passed {results['rules_passed_count']}/6 rules.") # Updated count

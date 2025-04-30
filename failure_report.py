@@ -16,7 +16,8 @@ PRICE_DROP_FROM_HIGH_PERCENT_MIN = 0.0
 EMA_PERIOD_LONG = 50 # Renamed
 EMA_PERIOD_SHORT = 20 # Added
 AVG_VOLUME_LOOKBACK = 50 # 50
-VOLUME_SURGE_MULTIPLIER = 2.0
+VOLUME_SURGE_MULTIPLIER_MIN = 2.0 # Minimum volume surge factor
+VOLUME_SURGE_MULTIPLIER_MAX = 2.5 # Maximum volume surge factor
 
 # Define rule names for clarity in the report (6 rules)
 RULE_NAMES = {
@@ -24,8 +25,8 @@ RULE_NAMES = {
     'passed_rule2': f'Drop% > {PRICE_DROP_FROM_HIGH_PERCENT_MIN}% ({LOOKBACK_PERIOD}d High)',
     'passed_rule3': f'Close > EMA({EMA_PERIOD_LONG})',
     'passed_rule4': f'Close > ₹{MIN_CLOSE_PRICE}',
-    'passed_rule5': f'Vol > {VOLUME_SURGE_MULTIPLIER}x Avg({AVG_VOLUME_LOOKBACK}d)',
-    'passed_rule6': f'EMA({EMA_PERIOD_SHORT}) > EMA({EMA_PERIOD_LONG})' # Added Rule 6 Name
+    'passed_rule5': f'{VOLUME_SURGE_MULTIPLIER_MIN}x < Vol Ratio < {VOLUME_SURGE_MULTIPLIER_MAX}x (Avg {AVG_VOLUME_LOOKBACK}d)', # Updated Rule 5 Name
+    'passed_rule6': f'EMA({EMA_PERIOD_SHORT}) > EMA({EMA_PERIOD_LONG})'
 }
 
 def _format_volume(volume_val):
@@ -92,9 +93,9 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=5): #
                 if rule_key == 'passed_rule1': short_name = "Drop%<10"
                 elif rule_key == 'passed_rule2': short_name = "Drop%>0"
                 elif rule_key == 'passed_rule3': short_name = f"Close>EMA{EMA_PERIOD_LONG}"
-                elif rule_key == 'passed_rule4': short_name = f"Price>{MIN_CLOSE_PRICE}" # Updated short name
-                elif rule_key == 'passed_rule5': short_name = f"Vol>{VOLUME_SURGE_MULTIPLIER}x"
-                elif rule_key == 'passed_rule6': short_name = f"EMA{EMA_PERIOD_SHORT}>EMA{EMA_PERIOD_LONG}" # Added short name for Rule 6
+                elif rule_key == 'passed_rule4': short_name = f"Price>{MIN_CLOSE_PRICE}"
+                elif rule_key == 'passed_rule5': short_name = f"{VOLUME_SURGE_MULTIPLIER_MIN}x<Vol<{VOLUME_SURGE_MULTIPLIER_MAX}x" # Updated short name for Rule 5
+                elif rule_key == 'passed_rule6': short_name = f"EMA{EMA_PERIOD_SHORT}>EMA{EMA_PERIOD_LONG}"
                 failed_rules_list.append(short_name)
         stock['failed_rules_display'] = ', '.join(failed_rules_list) if failed_rules_list else "None"
 
