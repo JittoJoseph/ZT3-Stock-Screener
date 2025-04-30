@@ -155,10 +155,7 @@ def run_screener():
     # 5. Send Discord Notification
     send_discord_notification(
         shortlisted_stocks,
-        report_filename=report_filename, # Will be None if no stocks passed
-        failure_report_filename=failure_report_filename, # Will be None if generation failed
         duration_seconds=screening_duration_seconds
-        # Consider passing TOTAL_RULES if needed in the notification text
     )
 
     overall_end_time = time.time() # End time for the whole process
