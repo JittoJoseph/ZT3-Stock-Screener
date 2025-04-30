@@ -1,7 +1,7 @@
 # Application configuration settings
 
 screener:
-  lookback_period: 20 # Days for high close, average volume, and EMA
+  lookback_period: 50 # Days for high close, average volume, and EMA - Updated to 50
   volume_multiplier: 1.5 #  Factor for volume surge check
   price_limits:
     min_price: 20.0

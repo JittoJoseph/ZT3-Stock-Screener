@@ -156,6 +156,7 @@ def send_discord_notification(
 
     # --- Stocks were found ---
     logging.info(f"Sending {len(shortlisted_stocks)} shortlisted stocks to Discord...")
+    stock_count = len(shortlisted_stocks) # Get the count
 
     # --- Create Embeds ---
     embeds_to_send = []
@@ -192,8 +193,10 @@ def send_discord_notification(
                 current_description += attachment_note # Add note before finalizing
                 first_embed = False # Note added
 
+            # Add stock count to the title here
+            embed_title = f"🚀 ZT-3 Breakout Alert ({stock_count} Stocks) - {screening_date_str}" + (f" (Part {part_num}/{total_parts})" if total_parts > 1 else "")
             embed = {
-                "title": f"🚀 ZT-3 Breakout Alert - {screening_date_str}" + (f" (Part {part_num}/{total_parts})" if total_parts > 1 else ""),
+                "title": embed_title,
                 "description": current_description,
                 "color": 0x2ECC71,
                 "footer": {"text": footer_text_main},
@@ -212,8 +215,10 @@ def send_discord_notification(
             current_description += attachment_note
             first_embed = False
 
+        # Add stock count to the title here as well
+        embed_title = f"🚀 ZT-3 Breakout Alert ({stock_count} Stocks) - {screening_date_str}" + (f" (Part {part_num}/{total_parts})" if total_parts > 1 else "")
         embed = {
-           "title": f"🚀 ZT-3 Breakout Alert - {screening_date_str}" + (f" (Part {part_num}/{total_parts})" if total_parts > 1 else ""),
+           "title": embed_title,
            "description": current_description,
            "color": 0x2ECC71,
         }

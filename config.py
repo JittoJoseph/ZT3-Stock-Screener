@@ -16,7 +16,7 @@ except FileNotFoundError:
     print(f"Error: {CONFIG_YAML_PATH} not found.")
     # Provide default settings or raise an error
     settings = { # Example default structure if file is missing
-        'screener': {'price_min': 20, 'price_max': 1000, 'volume_surge_factor': 1.5, 'lookback_period': 20},
+        'screener': {'price_min': 20, 'price_max': 1000, 'volume_surge_factor': 1.5, 'lookback_period': 50}, # Updated default lookback
         'paths': {'stock_list_file': 'stock_list.csv', 'output_dir': 'outputs', 'report_dir': 'outputs/reports', 'token_store_file': 'token_store.json'},
         'reporting': {'max_reports': 2},
         'upstox': {'api_version': 'v2'}

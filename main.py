@@ -20,7 +20,8 @@ from discord_notifier import send_discord_notification # Ensure this import is c
 # Constants for data fetching
 FETCH_INTERVAL = 'day' # Daily candles
 # Calculate date range needed (lookback + buffer for calculations)
-LOOKBACK_DAYS = config.settings['screener']['lookback_period'] + 40 # Fetch extra buffer
+# Ensure buffer is sufficient for 50-day EMA/Avg Vol
+LOOKBACK_DAYS = config.settings['screener']['lookback_period'] + 40 # Keep buffer, lookback_period is now 50
 
 # Constants for instrument key construction (assuming NSE Equity)
 EXCHANGE = "NSE"

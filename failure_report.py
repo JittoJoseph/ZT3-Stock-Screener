@@ -9,21 +9,21 @@ from utils.helpers import logging, get_report_filename # Assuming get_report_fil
 import config
 
 # Constants from screener_logic for context in report
-LOOKBACK_PERIOD = config.settings['screener']['lookback_period']
+LOOKBACK_PERIOD = config.settings['screener']['lookback_period'] # Now 50 from config
 MIN_CLOSE_PRICE = 10.0
 PRICE_DROP_FROM_HIGH_PERCENT_MAX = 10.0
 PRICE_DROP_FROM_HIGH_PERCENT_MIN = 0.0
-EMA_PERIOD = 20 # Added EMA Period
-AVG_VOLUME_LOOKBACK = 20
-VOLUME_SURGE_MULTIPLIER = 2.0 # Updated to 2.0
+EMA_PERIOD = 50 # Updated EMA Period to 50
+AVG_VOLUME_LOOKBACK = 50 # Updated Avg Vol Lookback to 50
+VOLUME_SURGE_MULTIPLIER = 2.0
 
-# Define rule names for clarity in the report (5 rules) - Updated Rule 5
+# Define rule names for clarity in the report (5 rules) - Updated Rules 3 & 5
 RULE_NAMES = {
-    'passed_rule1': f'Drop% < {PRICE_DROP_FROM_HIGH_PERCENT_MAX}%',
-    'passed_rule2': f'Drop% > {PRICE_DROP_FROM_HIGH_PERCENT_MIN}%',
-    'passed_rule3': f'Close > EMA({EMA_PERIOD})',
+    'passed_rule1': f'Drop% < {PRICE_DROP_FROM_HIGH_PERCENT_MAX}% ({LOOKBACK_PERIOD}d High)', # Added period
+    'passed_rule2': f'Drop% > {PRICE_DROP_FROM_HIGH_PERCENT_MIN}% ({LOOKBACK_PERIOD}d High)', # Added period
+    'passed_rule3': f'Close > EMA({EMA_PERIOD})', # Updated EMA period
     'passed_rule4': f'Close > ₹{MIN_CLOSE_PRICE}',
-    'passed_rule5': f'Vol > {VOLUME_SURGE_MULTIPLIER}x Avg({AVG_VOLUME_LOOKBACK}d)' # Updated Rule 5 Name
+    'passed_rule5': f'Vol > {VOLUME_SURGE_MULTIPLIER}x Avg({AVG_VOLUME_LOOKBACK}d)' # Updated Avg Vol period
 }
 
 def _format_volume(volume_val):
@@ -89,9 +89,9 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=4): #
                 short_name = rule_desc.split('(')[0].strip() # General short name
                 if rule_key == 'passed_rule1': short_name = "Drop%<10"
                 elif rule_key == 'passed_rule2': short_name = "Drop%>0"
-                elif rule_key == 'passed_rule3': short_name = f"Close>EMA{EMA_PERIOD}" # New short name
+                elif rule_key == 'passed_rule3': short_name = f"Close>EMA{EMA_PERIOD}" # Updated short name
                 elif rule_key == 'passed_rule4': short_name = "Price>10"
-                elif rule_key == 'passed_rule5': short_name = f"Vol>{VOLUME_SURGE_MULTIPLIER}x" # Updated short name
+                elif rule_key == 'passed_rule5': short_name = f"Vol>{VOLUME_SURGE_MULTIPLIER}x"
                 failed_rules_list.append(short_name)
         stock['failed_rules_display'] = ', '.join(failed_rules_list) if failed_rules_list else "None"
 
@@ -166,11 +166,11 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=4): #
                         <th>#</th>
                         <th>Symbol</th>
                         <th>Close (₹)</th>
-                        <th>EMA({EMA_PERIOD}) (₹)</th> <!-- Added EMA column header -->
+                        <th>EMA({EMA_PERIOD}) (₹)</th> <!-- Updated EMA column header -->
                         <th>Period High (₹)</th>
                         <th>Period Low (₹)</th>
                         <th>Volume</th>
-                        <th>Avg Vol (20d)</th>
+                        <th>Avg Vol ({AVG_VOLUME_LOOKBACK}d)</th> <!-- Updated Avg Vol column header -->
                         <th>Vol Ratio</th>
                         <th>Rules Passed</th>
                         <th>Failed Rule(s)</th>
@@ -188,11 +188,11 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=4): #
                         <td>{i+1}</td>
                         <td>{stock.get('symbol', 'N/A')}</td>
                         <td class="numeric">{stock.get('close', 0.0):.2f}</td>
-                        <td class="numeric">{metrics.get('ema_20', 0.0):.2f}</td> <!-- Added EMA value -->
+                        <td class="numeric">{metrics.get('ema_50', 0.0):.2f}</td>
                         <td class="numeric">{stock.get('period_high', 0.0):.2f}</td>
                         <td class="numeric">{stock.get('period_low', 0.0):.2f}</td>
                         <td class="numeric">{_format_volume(stock.get('volume'))}</td>
-                        <td class="numeric">{_format_volume(stock.get('avg_volume_20d'))}</td>
+                        <td class="numeric">{_format_volume(stock.get('avg_volume_50d'))}
                         <td class="numeric">{metrics.get('volume_ratio', 0.0):.2f}x</td>
                         <td class="center pass">{stock.get('rules_passed_count', 0)}/5</td>
                         <td class="fail">{stock.get('failed_rules_display', 'N/A')}</td>

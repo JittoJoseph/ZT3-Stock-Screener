@@ -19,6 +19,8 @@ def _format_volume(volume_val):
             return 'N/A'
     return 'N/A'
 
+# Get constants for headers
+AVG_VOLUME_LOOKBACK_REPORT = config.settings['screener'].get('lookback_period', 50) # Use lookback_period for consistency
 
 def generate_html_report(shortlisted_stocks, filename):
     if not shortlisted_stocks:
@@ -185,7 +187,7 @@ def generate_html_report(shortlisted_stocks, filename):
                         <th>Period High (₹)</th>
                         <th>Period Low (₹)</th>
                         <th>Volume</th>
-                        <th>Avg Vol (20d)</th>
+                        <th>Avg Vol ({AVG_VOLUME_LOOKBACK_REPORT}d)</th> <!-- Updated header -->
                         <th>Vol Ratio</th>
                     </tr>
                 </thead>
@@ -193,11 +195,14 @@ def generate_html_report(shortlisted_stocks, filename):
 """
 
     for i, stock in enumerate(shortlisted_stocks):
+        # Access metrics dictionary
+        metrics = stock.get('metrics', {})
         # Use the helper for current and average volume
         volume_str = _format_volume(stock.get('volume'))
-        avg_volume_str = _format_volume(stock.get('avg_volume_20d'))
+        avg_volume_str = _format_volume(stock.get('avg_volume_50d')) # Use updated key name
         isin_val = stock.get('isin', 'N/A')
-        volume_ratio_val = stock.get('volume_ratio', 0.0)
+        # Access volume_ratio from the metrics dictionary
+        volume_ratio_val = metrics.get('volume_ratio', 0.0) # Corrected access
 
         # Construct the table row string explicitly
         row_html = "<tr>"
@@ -208,8 +213,8 @@ def generate_html_report(shortlisted_stocks, filename):
         row_html += f"<td style='text-align: right;'>{stock.get('period_high', 0.0):.2f}</td>" # Use period_high
         row_html += f"<td style='text-align: right;'>{stock.get('period_low', 0.0):.2f}</td>"  # Use period_low
         row_html += f"<td style='text-align: right;'>{volume_str}</td>"
-        row_html += f"<td style='text-align: right;'>{avg_volume_str}</td>" # Add avg volume
-        row_html += f"<td style='text-align: right;'>{volume_ratio_val:.2f}x</td>" # Add volume ratio
+        row_html += f"<td style='text-align: right;'>{avg_volume_str}</td>" # Add avg volume (50d)
+        row_html += f"<td style='text-align: right;'>{volume_ratio_val:.2f}x</td>" # Add volume ratio (Corrected)
         row_html += "</tr>\n"
 
         html_content += row_html # Append the constructed row
@@ -238,12 +243,12 @@ def generate_html_report(shortlisted_stocks, filename):
 if __name__ == '__main__':
     logging.info("Testing report_generator module...")
 
-    # Dummy data matching the new output of screener_logic
+    # Dummy data matching the new output of screener_logic (including metrics dict)
     dummy_stocks = [
-        {'symbol': 'RELIANCE', 'isin': 'INE002A01018', 'close': 2880.50, 'period_high': 2900.00, 'period_low': 1400.00, 'volume': 1234567, 'avg_volume_20d': 800000, 'volume_ratio': 1.54, 'timestamp': datetime.now()},
-        {'symbol': 'TCS', 'isin': 'INE467B01029', 'close': 3465.20, 'period_high': 3500.00, 'period_low': 1700.00, 'volume': 890123.0, 'avg_volume_20d': 500000, 'volume_ratio': 1.78, 'timestamp': datetime.now()},
-        {'symbol': 'HDFCBANK', 'isin': 'INE040A01034', 'close': 1622.80, 'period_high': 1650.00, 'period_low': 800.00, 'volume': 2500000, 'avg_volume_20d': 1500000, 'volume_ratio': 1.67, 'timestamp': datetime.now()},
-        {'symbol': 'INFY', 'isin': 'INE009A01021', 'close': 1500.00, 'period_high': 1510.00, 'period_low': 700.00, 'volume': 1800000, 'avg_volume_20d': 1000000, 'volume_ratio': 1.80, 'timestamp': datetime.now()},
+        {'symbol': 'RELIANCE', 'isin': 'INE002A01018', 'close': 2880.50, 'period_high': 2900.00, 'period_low': 1400.00, 'volume': 1234567, 'avg_volume_50d': 800000, 'timestamp': datetime.now(), 'metrics': {'volume_ratio': 1.54, 'price_drop_pct': 0.67, 'ema_50': 2850.10}},
+        {'symbol': 'TCS', 'isin': 'INE467B01029', 'close': 3465.20, 'period_high': 3500.00, 'period_low': 1700.00, 'volume': 890123.0, 'avg_volume_50d': 500000, 'timestamp': datetime.now(), 'metrics': {'volume_ratio': 1.78, 'price_drop_pct': 0.99, 'ema_50': 3400.50}},
+        {'symbol': 'HDFCBANK', 'isin': 'INE040A01034', 'close': 1622.80, 'period_high': 1650.00, 'period_low': 800.00, 'volume': 2500000, 'avg_volume_50d': 1500000, 'timestamp': datetime.now(), 'metrics': {'volume_ratio': 1.67, 'price_drop_pct': 1.65, 'ema_50': 1605.20}},
+        {'symbol': 'INFY', 'isin': 'INE009A01021', 'close': 1500.00, 'period_high': 1510.00, 'period_low': 700.00, 'volume': 1800000, 'avg_volume_50d': 1000000, 'timestamp': datetime.now(), 'metrics': {'volume_ratio': 1.80, 'price_drop_pct': 0.66, 'ema_50': 1480.90}},
     ]
 
     report_file = get_report_filename()
