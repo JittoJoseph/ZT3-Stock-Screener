@@ -2,6 +2,7 @@ import sys
 import os
 from datetime import datetime, timedelta
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Ensure project root is in path (if running main.py directly from root)
 project_root = os.path.dirname(os.path.abspath(__file__))
@@ -65,19 +66,19 @@ def run_screener():
     from_date_str = (datetime.now() - timedelta(days=LOOKBACK_DAYS)).strftime('%Y-%m-%d')
 
     # 3. Iterate, Fetch, Screen
-    logging.info("--- Starting Data Fetching and Screening ---")
-    screening_start_time = time.time() # Start time for the screening loop
-    all_screening_results = [] # Store results for ALL stocks
+    logging.info("--- Starting Data Fetching and Screening (Parallel) ---")
+    screening_start_time = time.time()  # Start time for screening loop
+    all_screening_results = []
     fetch_errors = 0
-    total_stocks = len(stocks_to_scan)
 
-    for i, stock in enumerate(stocks_to_scan):
+    def process_stock(stock, to_date_str, from_date_str):
+        """
+        Fetches historical data and applies screening for one stock.
+        """
         symbol = stock['symbol']
         isin = stock['isin']
         instrument_key = f"{EXCHANGE}_{INSTRUMENT_TYPE}|{isin}"
-        logging.info(f"--- Processing [{i+1}/{total_stocks}]: {symbol} ({instrument_key}) ---")
-
-        # Fetch data
+        logging.info(f"--- Processing: {symbol} ({instrument_key}) ---")
         try:
             historical_df = fetch_historical_data(
                 instrument_key=instrument_key,
@@ -86,38 +87,36 @@ def run_screener():
                 from_date=from_date_str
             )
         except Exception as e:
-            logging.error(f"[{symbol}] Unhandled exception during data fetch: {e}")
+            logging.error(f"[{symbol}] Exception during data fetch: {e}")
             historical_df = None
-            fetch_errors += 1
-
-        # Apply screening logic (even if data fetch failed, apply_screening handles None)
         try:
-            # apply_screening now returns a detailed dict for every stock processed
             result_details = apply_screening(historical_df, symbol)
-            if result_details: # Ensure apply_screening didn't return None due to internal error
-                 # Add ISIN back to the result dictionary
-                 result_details['isin'] = isin
-                 all_screening_results.append(result_details)
+            if result_details:
+                result_details['isin'] = isin
+                return result_details
             else:
-                 # Log if apply_screening itself failed unexpectedly, though it should return a dict
-                 logging.error(f"[{symbol}] apply_screening returned None unexpectedly.")
-
+                logging.error(f"[{symbol}] apply_screening returned None unexpectedly.")
+                return None
         except Exception as e:
-            logging.error(f"[{symbol}] Unhandled exception during screening: {e}")
-            # Optionally add a placeholder result indicating screening error
-            all_screening_results.append({
+            logging.error(f"[{symbol}] Exception during screening: {e}")
+            return {
                 'symbol': symbol,
                 'isin': isin,
                 'failed_overall': True,
-                'reason': f'Screening Error: {e}',
+                'reason': f'Screening Exception: {e}',
                 'rules_passed_count': 0
-            })
+            }
 
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        futures = {executor.submit(process_stock, stock, to_date_str, from_date_str): stock for stock in stocks_to_scan}
+        for future in as_completed(futures):
+            res = future.result()
+            if res is not None:
+                all_screening_results.append(res)
+            else:
+                fetch_errors += 1
 
-        # Add a small delay between API calls to avoid rate limiting
-        time.sleep(0.3) # 300ms delay
-
-    screening_end_time = time.time() # End time for the screening loop
+    screening_end_time = time.time()  # End time for screening loop
     screening_duration_seconds = screening_end_time - screening_start_time
 
     # Filter successful stocks from all results
@@ -125,7 +124,7 @@ def run_screener():
 
     logging.info("="*50)
     logging.info("Screening Complete")
-    logging.info(f"Total Stocks Processed: {total_stocks}")
+    logging.info(f"Total Stocks Processed: {len(stocks_to_scan)}")
     logging.info(f"Stocks Passing Criteria ({TOTAL_RULES} rules): {len(shortlisted_stocks)}") # Use TOTAL_RULES
     if fetch_errors > 0:
         logging.warning(f"Data Fetching Errors Encountered: {fetch_errors}")
