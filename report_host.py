@@ -161,7 +161,8 @@ def update_landing_page():
   </div>
 </body>
 </html>"""
-    index_filepath = os.path.join(report_dir, "index.html")
+    # Replace destination so that the landing page is created in docs folder, not the reports folder:
+    index_filepath = os.path.join(DOCS_DIR, "index.html")
     with open(index_filepath, "w", encoding="utf-8") as f:
         f.write(landing_html)
     logging.info(f"Landing page updated at: {index_filepath}")
