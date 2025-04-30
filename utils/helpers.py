@@ -131,16 +131,17 @@ def manage_reports():
     except Exception as e:
         logging.error(f"An error occurred during report management: {e}")
 
-def get_report_filename(prefix="report_", use_date_only=False):
+def get_report_filename(prefix="report_", use_date_only=False, report_date=None):
     """
     Returns a full path filename for a report.
     If use_date_only is True, includes only the date (YYYYMMDD) in the filename;
-    otherwise, includes date and time (YYYYMMDD_HH%M%S).
+    otherwise, includes date and time (YYYYMMDD_HHMMSS).
+    If report_date (a datetime object) is provided, it is used instead of datetime.now().
     For example, if prefix is "success_report_":
        use_date_only True -> success_report_20250430.html
        use_date_only False -> success_report_20250430_211959.html
     """
-    now = datetime.now()
+    now = report_date if report_date is not None else datetime.now()
     if use_date_only:
         date_str = now.strftime("%Y%m%d")
     else:

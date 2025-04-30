@@ -132,13 +132,22 @@ def run_screener():
     logging.info(f"Screening Duration: {screening_duration_seconds:.2f} seconds")
     logging.info("="*50)
 
+    # After screening, determine the canonical trading date from shortlisted stocks:
+    if shortlisted_stocks:
+         dates = [s.get('timestamp') for s in shortlisted_stocks if s.get('timestamp')]
+         canonical_trading_date = max(dates) if dates else datetime.now()
+         screening_date_str = canonical_trading_date.strftime('%Y-%m-%d')
+    else:
+         canonical_trading_date = datetime.now()
+         screening_date_str = canonical_trading_date.strftime('%Y-%m-%d')
+
     # 4. Generate Reports
-    # Use get_report_filename so that success reports are named as "success_report_YYYYMMDD.html"
-    report_filename = get_report_filename(prefix="success_report_", use_date_only=True)
+    # Now pass canonical_trading_date so that the report filename uses the same trading date.
+    report_filename = get_report_filename(prefix="success_report_", use_date_only=True, report_date=canonical_trading_date)
     generate_html_report(shortlisted_stocks, report_filename)
     logging.info(f"Success report generated: {report_filename}")
 
-    temp_failure_filename = get_report_filename(prefix="failure_report_", use_date_only=True)
+    temp_failure_filename = get_report_filename(prefix="failure_report_", use_date_only=True, report_date=canonical_trading_date)
     failure_report_generated = generate_failure_report(
         all_screening_results,
         temp_failure_filename,
@@ -149,7 +158,6 @@ def run_screener():
         logging.info(f"Failure analysis report generated: {failure_report_filename}")
     else:
         failure_report_filename = None
-
     # --- Publish Report to GitHub Pages ---
     publish_both_reports(report_filename, failure_report_filename)
 
