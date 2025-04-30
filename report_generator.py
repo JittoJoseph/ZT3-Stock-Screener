@@ -60,7 +60,7 @@ def generate_html_report(shortlisted_stocks, filename):
         <h1>Daily Screener Report</h1>
         <p class="subtitle">Screening Date: {screening_date_str}</p>
         <p>No stocks passed the screening criteria today.</p>
-        <p>Please review the <a href="/failure-report.html" target="_blank">Failure Analysis Report</a> for further details.</p>
+        <p>Please review the <a href="failure-report.html" target="_blank">Failure Analysis Report</a> for further details.</p>
         <div class="footer">
             Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         </div>
@@ -211,7 +211,7 @@ def generate_html_report(shortlisted_stocks, filename):
 <body>
     <div class="container">
         <h1>Daily Screener Report</h1>
-        <p style="text-align:center; margin-bottom:20px;"><a href="/failure-report.html" target="_blank">View Failure Analysis Report</a></p>
+        <p style="text-align:center; margin-bottom:20px;"><a href="failure-report.html" target="_blank">View Failure Analysis Report</a></p>
         <p class="subtitle">Screening Date: {screening_date_str}</p>
 
         <div class="table-container">

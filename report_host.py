@@ -6,10 +6,13 @@ from utils.helpers import logging  # Uses existing logging setup
 
 # Define project root as the directory that contains this file.
 PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+DOCS_DIR = os.path.join(PROJECT_ROOT, "docs")
+os.makedirs(DOCS_DIR, exist_ok=True)
+
 TARGET_FILENAME = "index.html"
-TARGET_FILEPATH = os.path.join(PROJECT_ROOT, TARGET_FILENAME)
+TARGET_FILEPATH = os.path.join(DOCS_DIR, TARGET_FILENAME)
 TARGET_FAILURE_FILENAME = "failure-report.html"
-TARGET_FAILURE_FILEPATH = os.path.join(PROJECT_ROOT, TARGET_FAILURE_FILENAME)
+TARGET_FAILURE_FILEPATH = os.path.join(DOCS_DIR, TARGET_FAILURE_FILENAME)
 
 def run_git_command(command_list, cwd=PROJECT_ROOT):
     """Run a git command using subprocess and log the output."""
@@ -26,7 +29,7 @@ def run_git_command(command_list, cwd=PROJECT_ROOT):
 
 def publish_report(report_filepath):
     """
-    Copies the success HTML report to the project root as index.html,
+    Copies the success HTML report to the docs folder as index.html,
     commits the change, and pushes to GitHub.
     
     Args:
@@ -44,7 +47,7 @@ def publish_report(report_filepath):
         return
 
     commit_message = f"Update GitHub Pages report: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    if run_git_command(["git", "add", TARGET_FILENAME]):
+    if run_git_command(["git", "add", os.path.relpath(TARGET_FILEPATH, PROJECT_ROOT)]):
         if run_git_command(["git", "commit", "-m", commit_message]):
             if run_git_command(["git", "push"]):
                 logging.info("Report published successfully via GitHub Pages.")
@@ -57,7 +60,7 @@ def publish_report(report_filepath):
 
 def publish_failure_report(failure_filepath):
     """
-    Copies the failure HTML report to the project root as failure-report.html,
+    Copies the failure HTML report to the docs folder as failure-report.html,
     commits the change, and pushes to GitHub.
     """
     if not failure_filepath or not os.path.exists(failure_filepath):
@@ -72,7 +75,7 @@ def publish_failure_report(failure_filepath):
         return
 
     commit_message = f"Update GitHub Pages failure report: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-    if run_git_command(["git", "add", TARGET_FAILURE_FILENAME]):
+    if run_git_command(["git", "add", os.path.relpath(TARGET_FAILURE_FILEPATH, PROJECT_ROOT)]):
         if run_git_command(["git", "commit", "-m", commit_message]):
             if run_git_command(["git", "push"]):
                 logging.info("Failure report published successfully via GitHub Pages.")
