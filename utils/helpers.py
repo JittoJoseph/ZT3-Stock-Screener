@@ -87,40 +87,49 @@ def load_stock_list(filename=None):
     return stocks
 
 def manage_reports():
-    """Ensures only the latest MAX_REPORTS HTML files are kept in the report directory."""
     report_dir = config.settings['paths']['report_dir']
-    max_reports = config.settings['reporting']['max_reports']
+    # max_reports = config.settings['reporting']['max_reports'] # No longer used directly
 
-    # Ensure report directory exists
-    os.makedirs(report_dir, exist_ok=True)
+    if not os.path.isdir(report_dir):
+        logging.info(f"Report directory '{report_dir}' does not exist. No reports to manage.")
+        return
 
     try:
-        # Find all HTML files in the report directory
-        # Use pattern matching the generated report filenames
-        report_pattern = os.path.join(report_dir, 'breakout_report_*.html')
-        report_files = glob.glob(report_pattern)
+        all_files = [os.path.join(report_dir, f) for f in os.listdir(report_dir) if f.endswith('.html')]
 
-        if len(report_files) <= max_reports:
-            logging.info(f"Report count ({len(report_files)}) is within the limit ({max_reports}). No cleanup needed.")
+        success_reports = [f for f in all_files if os.path.basename(f).startswith('success_report_')]
+        failure_reports = [f for f in all_files if os.path.basename(f).startswith('failure_analysis_')]
+
+        files_to_delete = []
+
+        # Process success reports
+        if success_reports:
+            success_reports.sort(key=os.path.getmtime, reverse=True) # Sort newest first
+            files_to_delete.extend(success_reports[1:]) # Add all except the newest one to delete list
+
+        # Process failure reports
+        if failure_reports:
+            failure_reports.sort(key=os.path.getmtime, reverse=True) # Sort newest first
+            files_to_delete.extend(failure_reports[1:]) # Add all except the newest one to delete list
+
+        if not files_to_delete:
+            logging.info("No old reports found to delete.")
             return
 
-        # Sort files by modification time (oldest first)
-        report_files.sort(key=os.path.getmtime)
-
-        # Calculate how many files to delete
-        files_to_delete_count = len(report_files) - max_reports
-        files_to_delete = report_files[:files_to_delete_count]
-
-        # Delete the oldest files
-        for file_path in files_to_delete:
+        logging.info(f"Found {len(files_to_delete)} old report(s) to delete.")
+        deleted_count = 0
+        for f_path in files_to_delete:
             try:
-                os.remove(file_path)
-                logging.info(f"Deleted old report: {os.path.basename(file_path)}")
+                os.remove(f_path)
+                logging.info(f"Deleted old report: {os.path.basename(f_path)}")
+                deleted_count += 1
             except OSError as e:
-                logging.error(f"Error deleting report file {file_path}: {e}")
+                logging.error(f"Error deleting report file {f_path}: {e}")
+
+        logging.info(f"Report cleanup complete. Deleted {deleted_count} old report(s).")
 
     except Exception as e:
-        logging.error(f"Error managing report files in {report_dir}: {e}")
+        logging.error(f"An error occurred during report management: {e}")
 
 def get_report_filename(prefix="report_"): # Add prefix argument with a default
     """Generates a unique filename for the HTML report with an optional prefix."""
@@ -142,27 +151,6 @@ if __name__ == '__main__':
         logging.info(f"First few loaded stocks: {stocks[:3]}")
     else:
         logging.warning("Stock list loading test returned no stocks.")
-
-    # Test report management (create some dummy files first if needed)
-    logging.info("Testing report management...")
-    # Example: Create dummy files for testing
-    # report_dir = config.settings['paths']['report_dir']
-    # os.makedirs(report_dir, exist_ok=True)
-    # from datetime import timedelta
-    # for i in range(config.settings['reporting']['max_reports'] + 2):
-    #     # Use the actual filename pattern
-    #     dummy_time = datetime.now() - timedelta(days=i)
-    #     dummy_file = os.path.join(report_dir, f'breakout_report_{dummy_time.strftime("%Y-%m-%d_%H%M%S")}.html')
-    #     try:
-    #         with open(dummy_file, 'w') as f:
-    #             f.write('test')
-    #         # Adjust modification time slightly to ensure order if needed (utime might be better)
-    #         mod_time = datetime.now() - timedelta(days=i)
-    #         os.utime(dummy_file, (mod_time.timestamp(), mod_time.timestamp()))
-    #         logging.info(f"Created dummy file: {dummy_file}")
-    #     except Exception as e:
-    #         logging.error(f"Failed to create dummy file {dummy_file}: {e}")
-
 
     manage_reports()
     logging.info(f"Report filename for run: {get_report_filename()}")
