@@ -168,16 +168,16 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=5): #
                     <tr>
                         <th>#</th>
                         <th>Symbol</th>
-                        <th>Close (₹)</th>
-                        <th>EMA({EMA_PERIOD_SHORT}) (₹)</th> <!-- Added EMA(20) column header -->
-                        <th>EMA({EMA_PERIOD_LONG}) (₹)</th> <!-- Kept EMA(50) column header -->
-                        <th>Period High (₹)</th>
-                        <th>Period Low (₹)</th>
+                        <th>Close ₹</th>
+                        <th>EMA(20) ₹</th>
+                        <th>EMA(50) ₹</th>
+                        <th>High ₹</th>
+                        <th>Low ₹</th>
                         <th>Volume</th>
-                        <th>Avg Vol ({AVG_VOLUME_LOOKBACK}d)</th>
+                        <th>Avg Vol</th>
                         <th>Vol Ratio</th>
-                        <th>Rules Passed</th>
-                        <th>Failed Rule(s)</th>
+                        <th>Passed</th>
+                        <th>Failed</th>
                         <th>Drop %</th>
                     </tr>
                 </thead>
