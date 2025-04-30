@@ -29,11 +29,24 @@ def run_git_command(command_list, cwd=PROJECT_ROOT):
         logging.error(f"Git command failed: {e}")
         return False
 
+def sync_reports_to_docs():
+    """
+    Copies all daily report HTML files from the reports folder (config.settings['paths']['report_dir'])
+    into the docs folder, so that GitHub Pages serves these reports.
+    """
+    report_dir = config.settings['paths']['report_dir']
+    for html_file in glob.glob(os.path.join(report_dir, "*.html")):
+        dest_file = os.path.join(DOCS_DIR, os.path.basename(html_file))
+        try:
+            shutil.copyfile(html_file, dest_file)
+            logging.info(f"Synced {html_file} to {dest_file}")
+        except Exception as e:
+            logging.error(f"Error syncing report {html_file} to docs: {e}")
+
 def publish_both_reports(success_filepath, failure_filepath):
     """
-    Copies the success report to docs/index.html and the failure report to 
-    docs/failure-report.html (if they exist), then commits and pushes both changes
-    as a single commit.
+    Copies the provided success and failure reports, then syncs all report files
+    into the docs folder before committing & pushing all changes.
     """
     files_to_commit = []
     
@@ -61,6 +74,11 @@ def publish_both_reports(success_filepath, failure_filepath):
         logging.error("No report files to commit.")
         return
 
+    # --- New: Sync all report files from reports to docs ---
+    sync_reports_to_docs()
+    synced_files = glob.glob(os.path.join(DOCS_DIR, "*.html"))
+    files_to_commit = [os.path.relpath(f, PROJECT_ROOT) for f in synced_files]
+    
     commit_message = f"Update GitHub Pages reports: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
     if run_git_command(["git", "add"] + files_to_commit):
         if run_git_command(["git", "commit", "-m", commit_message]):
