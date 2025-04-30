@@ -122,11 +122,14 @@ def manage_reports():
     except Exception as e:
         logging.error(f"Error managing report files in {report_dir}: {e}")
 
-def get_report_filename():
-    """Generates a filename for the HTML report based on the current date."""
+def get_report_filename(prefix="report_"): # Add prefix argument with a default
+    """Generates a unique filename for the HTML report with an optional prefix."""
     report_dir = config.settings['paths']['report_dir']
-    today_str = datetime.now().strftime('%Y-%m-%d_%H%M%S') # Add time to avoid overwrite if run multiple times a day
-    return os.path.join(report_dir, f"breakout_report_{today_str}.html")
+    os.makedirs(report_dir, exist_ok=True)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    # Use the prefix in the filename
+    filename = os.path.join(report_dir, f"{prefix}{timestamp}.html")
+    return filename
 
 
 # Example usage (for testing later)

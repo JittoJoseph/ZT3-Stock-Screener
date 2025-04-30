@@ -5,6 +5,21 @@ import numpy as np # Import numpy to check its types
 import config
 from utils.helpers import logging, get_report_filename, manage_reports
 
+def _format_volume(volume_val):
+    """Helper to format volume consistently."""
+    if isinstance(volume_val, (int, float, np.integer, np.floating)) and not math.isnan(volume_val):
+        try:
+            return f"{int(volume_val):,}"
+        except (ValueError, TypeError):
+            return 'N/A'
+    elif isinstance(volume_val, str) and volume_val.isdigit():
+        try:
+            return f"{int(volume_val):,}"
+        except (ValueError, TypeError):
+            return 'N/A'
+    return 'N/A'
+
+
 def generate_html_report(shortlisted_stocks, filename):
     if not shortlisted_stocks:
         logging.info("No stocks passed screening. HTML report will not be generated.")
@@ -15,6 +30,7 @@ def generate_html_report(shortlisted_stocks, filename):
 
     screening_date_str = "N/A"
     if shortlisted_stocks and 'timestamp' in shortlisted_stocks[0]:
+         # Use the date part of the timestamp
          screening_date_str = shortlisted_stocks[0]['timestamp'].strftime('%Y-%m-%d')
 
     html_content = f"""
@@ -23,9 +39,9 @@ def generate_html_report(shortlisted_stocks, filename):
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daily Breakout Screener Report - {screening_date_str}</title>
+    <title>Daily Screener Report - {screening_date_str}</title>
     <style>
-        /* Mobile First Styles */
+        /* ... existing styles ... */
         body {{
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
@@ -34,7 +50,6 @@ def generate_html_report(shortlisted_stocks, filename):
             color: #212529;
             font-size: 14px;
         }}
-        /* ... existing container, h1, p.subtitle styles ... */
         .container {{
             width: 100%;
             margin: 0 auto;
@@ -65,20 +80,18 @@ def generate_html_report(shortlisted_stocks, filename):
         }}
         table {{
             width: 100%;
-            min-width: 600px;
+            min-width: 800px; /* Adjusted min-width for more columns */
             border-collapse: collapse;
             margin-top: 15px;
-            /* font-size is now controlled by th, td */
         }}
         th, td {{
             border: 1px solid #dee2e6;
-            padding: 12px 15px; /* Slightly larger padding */
+            padding: 12px 15px;
             text-align: left;
             vertical-align: middle;
             white-space: nowrap;
-            font-size: 1.5em; /* Significantly larger font size for table cells on mobile */
+            font-size: 1.5em; /* Mobile font size */
         }}
-        /* ... existing th, tr:nth-child(even) styles ... */
         th {{
             background-color: #e9ecef;
             color: #495057;
@@ -93,19 +106,17 @@ def generate_html_report(shortlisted_stocks, filename):
             background-color: #f8f9fa;
         }}
 
-        /* ... existing td alignment styles ... */
-        td:nth-child(4),
-        td:nth-child(5),
-        td:nth-child(7),
-        td:nth-child(8)
+        /* Adjust alignment for new columns */
+        td:nth-child(4), /* Close Price */
+        td:nth-child(5), /* Period High */
+        td:nth-child(6), /* Period Low */
+        td:nth-child(7), /* Volume */
+        td:nth-child(8), /* Avg Vol */
+        td:nth-child(9)  /* Vol Ratio */
         {{
             text-align: right;
         }}
-        td:nth-child(6)
-        {{
-             text-align: right;
-        }}
-        /* ... existing footer styles ... */
+
         .footer {{
             margin-top: 20px;
             font-size: 0.8em;
@@ -114,15 +125,14 @@ def generate_html_report(shortlisted_stocks, filename):
             padding: 10px 15px;
         }}
 
-        /* Desktop Styles (apply overrides for larger screens) */
+        /* Desktop Styles */
         @media (min-width: 768px) {{
-            /* ... existing desktop body, container, h1, p.subtitle styles ... */
             body {{
                 padding: 20px;
                 font-size: 16px;
             }}
             .container {{
-                max-width: 1200px;
+                max-width: 1400px; /* Wider container for more columns */
                 margin: 20px auto;
                 padding: 30px;
                 border-radius: 8px;
@@ -136,16 +146,13 @@ def generate_html_report(shortlisted_stocks, filename):
                 font-size: 1.1em;
                 margin-bottom: 30px;
             }}
-            /* ... existing desktop table-container styles ... */
             .table-container {{
                  margin: 0;
                  padding: 0;
             }}
             table {{
-                /* font-size is now controlled by th, td */
                 min-width: auto;
             }}
-            /* ... existing desktop th, td, tr:hover, footer styles ... */
             th, td {{
                 padding: 12px 15px;
                 white-space: normal;
@@ -164,7 +171,7 @@ def generate_html_report(shortlisted_stocks, filename):
 </head>
 <body>
     <div class="container">
-        <h1>Daily Breakout Screener Report</h1>
+        <h1>Daily Screener Report</h1>
         <p class="subtitle">Screening Date: {screening_date_str}</p>
 
         <div class="table-container">
@@ -174,52 +181,35 @@ def generate_html_report(shortlisted_stocks, filename):
                         <th>#</th>
                         <th>Symbol</th>
                         <th>ISIN</th>
-                        <th>Close Price (₹)</th>
-                        <th>Breakout Level (₹)</th>
-                        <th>Volume Surge (%)</th>
-                        <th>EMA(20) (₹)</th>
+                        <th>Close (₹)</th>
+                        <th>Period High (₹)</th>
+                        <th>Period Low (₹)</th>
                         <th>Volume</th>
+                        <th>Avg Vol (20d)</th>
+                        <th>Vol Ratio</th>
                     </tr>
                 </thead>
                 <tbody>
 """
 
     for i, stock in enumerate(shortlisted_stocks):
-        volume_val = stock.get('volume')
-
+        # Use the helper for current and average volume
+        volume_str = _format_volume(stock.get('volume'))
+        avg_volume_str = _format_volume(stock.get('avg_volume_20d'))
         isin_val = stock.get('isin', 'N/A')
-
-        # Refined volume formatting with explicit numpy type check
-        volume_str = 'N/A'
-        # Check for standard int/float AND numpy int/float types
-        if isinstance(volume_val, (int, float, np.integer, np.floating)) and not math.isnan(volume_val):
-            try:
-                # Convert to standard Python int first to ensure comma formatting works
-                volume_int = int(volume_val)
-                volume_str = f"{volume_int:,}"
-            except (ValueError, TypeError) as fmt_err:
-                logging.error(f"  Error formatting numeric volume '{volume_val}': {fmt_err}")
-                volume_str = 'N/A' # Fallback if conversion/formatting fails
-        elif isinstance(volume_val, str) and volume_val.isdigit():
-             try:
-                 volume_str = f"{int(volume_val):,}"
-             except (ValueError, TypeError) as fmt_err:
-                 logging.error(f"  Error formatting string digit volume '{volume_val}': {fmt_err}")
-                 volume_str = 'N/A'
-        else:
-            # Log if the value is neither a recognized number nor a string digit
-            logging.debug(f"  Volume value '{volume_val}' is not a recognized number or string digit. Displaying N/A.")
+        volume_ratio_val = stock.get('volume_ratio', 0.0)
 
         # Construct the table row string explicitly
         row_html = "<tr>"
         row_html += f"<td>{i+1}</td>"
         row_html += f"<td>{stock.get('symbol', 'N/A')}</td>"
         row_html += f"<td>{isin_val}</td>"
-        row_html += f"<td>{stock.get('close', 0.0):.2f}</td>"
-        row_html += f"<td>{stock.get('breakout_level', 0.0):.2f}</td>"
-        row_html += f"<td>{stock.get('volume_surge_pct', 0.0):.2f}%</td>"
-        row_html += f"<td>{stock.get('ema_20', 0.0):.2f}</td>"
-        row_html += f"<td>{volume_str}</td>" # Use the formatted string
+        row_html += f"<td style='text-align: right;'>{stock.get('close', 0.0):.2f}</td>"
+        row_html += f"<td style='text-align: right;'>{stock.get('period_high', 0.0):.2f}</td>" # Use period_high
+        row_html += f"<td style='text-align: right;'>{stock.get('period_low', 0.0):.2f}</td>"  # Use period_low
+        row_html += f"<td style='text-align: right;'>{volume_str}</td>"
+        row_html += f"<td style='text-align: right;'>{avg_volume_str}</td>" # Add avg volume
+        row_html += f"<td style='text-align: right;'>{volume_ratio_val:.2f}x</td>" # Add volume ratio
         row_html += "</tr>\n"
 
         html_content += row_html # Append the constructed row
@@ -248,13 +238,12 @@ def generate_html_report(shortlisted_stocks, filename):
 if __name__ == '__main__':
     logging.info("Testing report_generator module...")
 
+    # Dummy data matching the new output of screener_logic
     dummy_stocks = [
-        {'symbol': 'RELIANCE', 'isin': 'INE002A01018', 'close': 2880.50, 'breakout_level': 2850.00, 'volume_surge_pct': 75.5, 'ema_20': 2800.10, 'timestamp': datetime.now(), 'volume': 1234567},
-        {'symbol': 'TCS', 'isin': 'INE467B01029', 'close': 3465.20, 'breakout_level': 3400.00, 'volume_surge_pct': 55.1, 'ema_20': 3350.50, 'timestamp': datetime.now(), 'volume': 890123.0}, # Test float volume
-        {'symbol': 'HDFCBANK', 'isin': 'INE040A01034', 'close': 1622.80, 'breakout_level': 1600.00, 'volume_surge_pct': 110.0, 'ema_20': 1580.90, 'timestamp': datetime.now(), 'volume': 2500000},
-        {'symbol': 'INFY', 'isin': 'INE009A01021', 'close': 1500.00, 'breakout_level': 1480.00, 'volume_surge_pct': 90.0, 'ema_20': 1450.00, 'timestamp': datetime.now(), 'volume': None}, # Test None volume
-        {'symbol': 'WIPRO', 'isin': 'INE075A01022', 'close': 450.00, 'breakout_level': 440.00, 'volume_surge_pct': 120.0, 'ema_20': 430.00, 'timestamp': datetime.now(), 'volume': float('nan')}, # Test NaN volume
-        {'symbol': 'TEST', 'isin': 'INE123X01011', 'close': 100.00, 'breakout_level': 95.00, 'volume_surge_pct': 50.0, 'ema_20': 98.00, 'timestamp': datetime.now(), 'volume': 'Invalid'}, # Test invalid string volume
+        {'symbol': 'RELIANCE', 'isin': 'INE002A01018', 'close': 2880.50, 'period_high': 2900.00, 'period_low': 1400.00, 'volume': 1234567, 'avg_volume_20d': 800000, 'volume_ratio': 1.54, 'timestamp': datetime.now()},
+        {'symbol': 'TCS', 'isin': 'INE467B01029', 'close': 3465.20, 'period_high': 3500.00, 'period_low': 1700.00, 'volume': 890123.0, 'avg_volume_20d': 500000, 'volume_ratio': 1.78, 'timestamp': datetime.now()},
+        {'symbol': 'HDFCBANK', 'isin': 'INE040A01034', 'close': 1622.80, 'period_high': 1650.00, 'period_low': 800.00, 'volume': 2500000, 'avg_volume_20d': 1500000, 'volume_ratio': 1.67, 'timestamp': datetime.now()},
+        {'symbol': 'INFY', 'isin': 'INE009A01021', 'close': 1500.00, 'period_high': 1510.00, 'period_low': 700.00, 'volume': 1800000, 'avg_volume_20d': 1000000, 'volume_ratio': 1.80, 'timestamp': datetime.now()},
     ]
 
     report_file = get_report_filename()
