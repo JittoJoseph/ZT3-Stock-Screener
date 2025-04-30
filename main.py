@@ -16,6 +16,7 @@ from screener_logic import apply_screening, TOTAL_RULES # Import TOTAL_RULES
 from report_generator import generate_html_report
 from failure_report import generate_failure_report # Import the new function
 from discord_notifier import send_discord_notification # Ensure this import is correct
+from report_host import publish_report, publish_failure_report  # NEW import
 
 # Constants for data fetching
 FETCH_INTERVAL = 'day' # Daily candles
@@ -132,30 +133,32 @@ def run_screener():
     logging.info("="*50)
 
     # 4. Generate Reports
-    report_filename = None
-    failure_report_filename = None
+    report_filename = get_report_filename(prefix="success_report_")
+    generate_html_report(shortlisted_stocks, report_filename)
+    logging.info(f"Success report generated: {report_filename}")
 
-    if shortlisted_stocks:
-        report_filename = get_report_filename(prefix="success_report_")
-        generate_html_report(shortlisted_stocks, report_filename)
-        logging.info(f"Success report generated: {report_filename}")
-    else:
-        logging.info("No stocks passed screening. Skipping success report generation.")
-
-    # Generate failure analysis report (shows stocks passing >= TOTAL_RULES - 1 rules by default)
-    logging.info("Attempting to generate failure analysis report...")
     temp_failure_filename = get_report_filename(prefix="failure_analysis_")
-    # Pass None for min_rules_passed to use the default (TOTAL_RULES - 1)
     failure_report_generated = generate_failure_report(
         all_screening_results,
         temp_failure_filename,
-        min_rules_passed=None # Use default logic within the function
+        min_rules_passed=None  # Use default logic
     )
     if failure_report_generated:
         failure_report_filename = temp_failure_filename
         logging.info(f"Failure analysis report generated: {failure_report_filename}")
     else:
         failure_report_filename = None
+
+    # --- Publish Report to GitHub Pages ---
+    if report_filename:
+        publish_report(report_filename)
+    else:
+        logging.info("No success report to publish to GitHub Pages.")
+
+    if failure_report_filename:
+        publish_failure_report(failure_report_filename)
+    else:
+        logging.info("No failure report to publish to GitHub Pages.")
 
     # 5. Send Discord Notification
     send_discord_notification(
