@@ -44,6 +44,13 @@ def send_discord_notification(
         logging.error(f"Error formatting IST time: {e}")
         now_formatted_str = datetime.now(timezone.utc).strftime('%d %b %Y, %H:%M UTC')
 
+    # Before building report_links, add:
+    if shortlisted_stocks:
+         dates = [s.get('timestamp') for s in shortlisted_stocks if s.get('timestamp')]
+         screening_date_str = max(dates).strftime('%d %B %Y') if dates else datetime.now(timezone.utc).strftime('%d %B %Y')
+    else:
+         screening_date_str = datetime.now(timezone.utc).strftime('%d %B %Y')
+
     # Build common report links text
     report_links = (f"[Success Report]({SUCCESS_REPORT_URL}) | "
                     f"[Failure Analysis Report]({FAILURE_REPORT_URL})")

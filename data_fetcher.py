@@ -1,3 +1,4 @@
+import time  # NEW: ensure time is imported for time.sleep usage
 import config # Now imports the module that loads .env and yaml
 import requests
 import json
@@ -189,66 +190,59 @@ def fetch_historical_data(instrument_key, interval='day', to_date=None, from_dat
     logging.info(f"Fetching historical data for {instrument_key} from {from_date} to {to_date}")
     logging.debug(f"API URL: {historical_data_url}")
 
-    try:
-        response = requests.get(historical_data_url, headers=headers)
-        response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
-
-        data = response.json()
-
-        if data.get('status') != 'success':
-            logging.error(f"API request failed for {instrument_key}. Status: {data.get('status')}, Message: {data.get('message', 'N/A')}")
-            return None
-
-        candles = data.get('data', {}).get('candles')
-
-        if not candles:
-            logging.warning(f"No candle data returned for {instrument_key} for the given period.")
-            return None
-
-        # Define column names based on documentation order
-        columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'open_interest']
-        df = pd.DataFrame(candles, columns=columns)
-
-        # Convert timestamp to datetime objects (adjust format if needed, API uses ISO 8601)
-        # Example: "2023-10-01T00:00:00+05:30"
+    max_retries = 3
+    for attempt in range(max_retries):
         try:
-            # Let pandas infer the format, which usually works well with ISO 8601
-            df['timestamp'] = pd.to_datetime(df['timestamp'])
-            # Optional: Convert to date if only date part is needed for daily data
-            # df['date'] = df['timestamp'].dt.date
+            response = requests.get(historical_data_url, headers=headers)
+            response.raise_for_status()  # Raises exception for 4xx/5xx codes
+            data = response.json()
+            if data.get('status') != 'success':
+                logging.error(f"API request failed for {instrument_key}. Status: {data.get('status')}, Message: {data.get('message', 'N/A')}")
+                return None
+            candles = data.get('data', {}).get('candles')
+            if not candles:
+                logging.warning(f"No candle data returned for {instrument_key} for the given period.")
+                return None
+            # Define column names based on documentation order
+            columns = ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'open_interest']
+            df = pd.DataFrame(candles, columns=columns)
+
+            # Convert timestamp to datetime objects (adjust format if needed, API uses ISO 8601)
+            # Example: "2023-10-01T00:00:00+05:30"
+            try:
+                # Let pandas infer the format, which usually works well with ISO 8601
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+                # Optional: Convert to date if only date part is needed for daily data
+                # df['date'] = df['timestamp'].dt.date
+            except Exception as e:
+                logging.warning(f"Could not parse timestamp column for {instrument_key}: {e}. Leaving as string.")
+
+
+            # Convert numeric columns
+            numeric_cols = ['open', 'high', 'low', 'close', 'volume', 'open_interest']
+            for col in numeric_cols:
+                df[col] = pd.to_numeric(df[col], errors='coerce') # Coerce errors to NaN
+
+            # Sort by timestamp just in case API doesn't guarantee order
+            df = df.sort_values(by='timestamp').reset_index(drop=True)
+
+            logging.info(f"Successfully fetched and processed {len(df)} candles for {instrument_key}")
+            return df
+
+        except requests.exceptions.HTTPError as http_err:
+            if response.status_code == 429:
+                delay = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s, etc.
+                logging.error(f"HTTP error 429 for {instrument_key}. Attempt {attempt+1}/{max_retries}. Retrying after {delay} second(s).")
+                time.sleep(delay)
+                continue
+            else:
+                logging.error(f"HTTP error occurred for {instrument_key}: {http_err}")
+                return None
         except Exception as e:
-            logging.warning(f"Could not parse timestamp column for {instrument_key}: {e}. Leaving as string.")
-
-
-        # Convert numeric columns
-        numeric_cols = ['open', 'high', 'low', 'close', 'volume', 'open_interest']
-        for col in numeric_cols:
-            df[col] = pd.to_numeric(df[col], errors='coerce') # Coerce errors to NaN
-
-        # Sort by timestamp just in case API doesn't guarantee order
-        df = df.sort_values(by='timestamp').reset_index(drop=True)
-
-        logging.info(f"Successfully fetched and processed {len(df)} candles for {instrument_key}")
-        return df
-
-    except requests.exceptions.HTTPError as http_err:
-        logging.error(f"HTTP error occurred while fetching data for {instrument_key}: {http_err}")
-        logging.error(f"Response status: {http_err.response.status_code}")
-        logging.error(f"Response text: {http_err.response.text}")
-        return None
-    except requests.exceptions.RequestException as req_err:
-        logging.error(f"Request error occurred while fetching data for {instrument_key}: {req_err}")
-        return None
-    except json.JSONDecodeError as json_err:
-        logging.error(f"JSON decode error occurred while processing data for {instrument_key}: {json_err}")
-        logging.error(f"Response text: {response.text}") # Log raw response text
-        return None
-    except Exception as e:
-        logging.error(f"An unexpected error occurred during data fetching for {instrument_key}: {e}")
-        # Add traceback logging here as well for fetch errors
-        import traceback
-        logging.error(traceback.format_exc())
-        return None
+            logging.error(f"An unexpected error occurred during data fetching for {instrument_key}: {e}")
+            return None
+    logging.error(f"Max retries exceeded for {instrument_key}.")
+    return None
 
 
 # Example usage (for testing later)

@@ -84,11 +84,9 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=None)
     report_dir = os.path.dirname(filename)
     os.makedirs(report_dir, exist_ok=True)
 
-    screening_date_str = "N/A"
-    for stock in nearly_passed_stocks:
-        if stock.get('timestamp'):
-            screening_date_str = stock['timestamp'].strftime('%Y-%m-%d')
-            break
+    # Replace the loop that sets screening_date_str with:
+    dates = [s.get('timestamp') for s in nearly_passed_stocks if s.get('timestamp')]
+    screening_date_str = max(dates).strftime('%Y-%m-%d') if dates else datetime.now().strftime('%Y-%m-%d')
 
     # --- Analyze Failure Reasons ---
     failure_counts = Counter()

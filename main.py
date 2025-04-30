@@ -107,7 +107,8 @@ def run_screener():
                 'rules_passed_count': 0
             }
 
-    with ThreadPoolExecutor(max_workers=4) as executor:
+    # Use 2 workers instead of 3 to reduce burst load
+    with ThreadPoolExecutor(max_workers=2) as executor:
         futures = {executor.submit(process_stock, stock, to_date_str, from_date_str): stock for stock in stocks_to_scan}
         for future in as_completed(futures):
             res = future.result()

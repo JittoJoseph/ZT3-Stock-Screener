@@ -33,8 +33,9 @@ def generate_html_report(shortlisted_stocks, filename):
     os.makedirs(report_dir, exist_ok=True)
 
     screening_date_str = "N/A"
-    if shortlisted_stocks and 'timestamp' in shortlisted_stocks[0]:
-         screening_date_str = shortlisted_stocks[0]['timestamp'].strftime('%Y-%m-%d')
+    if shortlisted_stocks:
+        dates = [s.get('timestamp') for s in shortlisted_stocks if s.get('timestamp')]
+        screening_date_str = max(dates).strftime('%Y-%m-%d') if dates else datetime.now().strftime('%Y-%m-%d')
     else:
          screening_date_str = datetime.now().strftime('%Y-%m-%d')
 
