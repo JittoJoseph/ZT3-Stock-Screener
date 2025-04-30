@@ -181,6 +181,7 @@ def generate_html_report(shortlisted_stocks, filename):
 <body>
     <div class="container">
         <h1>Daily Screener Report</h1>
+        <p style="text-align:center; margin-bottom:20px;"><a href="/failure-report.html" target="_blank">View Failure Analysis Report</a></p>
         <p class="subtitle">Screening Date: {screening_date_str}</p>
 
         <div class="table-container">
