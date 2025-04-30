@@ -125,17 +125,16 @@ def run_screener():
     logging.info("="*50)
     logging.info("Screening Complete")
     logging.info(f"Total Stocks Processed: {total_stocks}")
-    logging.info(f"Stocks Passing Criteria: {len(shortlisted_stocks)}")
+    logging.info(f"Stocks Passing Criteria (6 rules): {len(shortlisted_stocks)}") # Updated text
     if fetch_errors > 0:
         logging.warning(f"Data Fetching Errors Encountered: {fetch_errors}")
-    logging.info(f"Screening Duration: {screening_duration_seconds:.2f} seconds") # Log duration
+    logging.info(f"Screening Duration: {screening_duration_seconds:.2f} seconds")
     logging.info("="*50)
 
     # 4. Generate Reports
     report_filename = None
-    failure_report_filename = None # Initialize failure report filename
+    failure_report_filename = None
 
-    # Generate success report ONLY if stocks are shortlisted
     if shortlisted_stocks:
         report_filename = get_report_filename(prefix="success_report_")
         generate_html_report(shortlisted_stocks, report_filename)
@@ -143,24 +142,21 @@ def run_screener():
     else:
         logging.info("No stocks passed screening. Skipping success report generation.")
 
-    # Generate failure analysis report REGARDLESS of whether stocks passed
-    # This report shows stocks that passed >= 4 rules but failed the full criteria
+    # Generate failure analysis report (shows stocks passing >= 5/6 rules)
     logging.info("Attempting to generate failure analysis report...")
     temp_failure_filename = get_report_filename(prefix="failure_analysis_")
     failure_report_generated = generate_failure_report(
         all_screening_results,
         temp_failure_filename,
-        min_rules_passed=4
+        min_rules_passed=5 # Updated default check (5 out of 6)
     )
     if failure_report_generated:
-        failure_report_filename = temp_failure_filename # Assign filename only if generation succeeded
+        failure_report_filename = temp_failure_filename
         logging.info(f"Failure analysis report generated: {failure_report_filename}")
     else:
-        # Log is handled within generate_failure_report if it fails or finds no stocks meeting criteria
-        failure_report_filename = None # Ensure it's None if generation failed
+        failure_report_filename = None
 
     # 5. Send Discord Notification
-    # Pass both potential filenames; discord_notifier handles logic based on shortlisted_stocks
     send_discord_notification(
         shortlisted_stocks,
         report_filename=report_filename, # Will be None if no stocks passed

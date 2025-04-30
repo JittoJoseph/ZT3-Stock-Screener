@@ -21,6 +21,9 @@ def _format_volume(volume_val):
 
 # Get constants for headers
 AVG_VOLUME_LOOKBACK_REPORT = config.settings['screener'].get('lookback_period', 50) # Use lookback_period for consistency
+# Add EMA periods for headers
+EMA_PERIOD_LONG_REPORT = 50 # Assuming 50
+EMA_PERIOD_SHORT_REPORT = 20 # Assuming 20
 
 def generate_html_report(shortlisted_stocks, filename):
     if not shortlisted_stocks:
@@ -110,11 +113,13 @@ def generate_html_report(shortlisted_stocks, filename):
 
         /* Adjust alignment for new columns */
         td:nth-child(4), /* Close Price */
-        td:nth-child(5), /* Period High */
-        td:nth-child(6), /* Period Low */
-        td:nth-child(7), /* Volume */
-        td:nth-child(8), /* Avg Vol */
-        td:nth-child(9)  /* Vol Ratio */
+        td:nth-child(5), /* EMA(20) */
+        td:nth-child(6), /* EMA(50) */
+        td:nth-child(7), /* Period High */
+        td:nth-child(8), /* Period Low */
+        td:nth-child(9), /* Volume */
+        td:nth-child(10), /* Avg Vol */
+        td:nth-child(11)  /* Vol Ratio */
         {{
             text-align: right;
         }}
@@ -184,6 +189,8 @@ def generate_html_report(shortlisted_stocks, filename):
                         <th>Symbol</th>
                         <th>ISIN</th>
                         <th>Close (₹)</th>
+                        <th>EMA({EMA_PERIOD_SHORT_REPORT}) (₹)</th> <!-- Added EMA(20) header -->
+                        <th>EMA({EMA_PERIOD_LONG_REPORT}) (₹)</th> <!-- Added EMA(50) header -->
                         <th>Period High (₹)</th>
                         <th>Period Low (₹)</th>
                         <th>Volume</th>
@@ -203,6 +210,8 @@ def generate_html_report(shortlisted_stocks, filename):
         isin_val = stock.get('isin', 'N/A')
         # Access volume_ratio from the metrics dictionary
         volume_ratio_val = metrics.get('volume_ratio', 0.0) # Corrected access
+        ema_20_val = metrics.get('ema_20', 0.0) # Get EMA(20)
+        ema_50_val = metrics.get('ema_50', 0.0) # Get EMA(50)
 
         # Construct the table row string explicitly
         row_html = "<tr>"
@@ -210,7 +219,9 @@ def generate_html_report(shortlisted_stocks, filename):
         row_html += f"<td>{stock.get('symbol', 'N/A')}</td>"
         row_html += f"<td>{isin_val}</td>"
         row_html += f"<td style='text-align: right;'>{stock.get('close', 0.0):.2f}</td>"
-        row_html += f"<td style='text-align: right;'>{stock.get('period_high', 0.0):.2f}</td>" # Use period_high
+        row_html += f"<td style='text-align: right;'>{ema_20_val:.2f}</td>" # Add EMA(20) value
+        row_html += f"<td style='text-align: right;'>{ema_50_val:.2f}</td>" # Add EMA(50) value
+        row_html += f"<td style='text-align: right;'>{stock.get('period_high', 0.0)::.2f}</td>" # Use period_high
         row_html += f"<td style='text-align: right;'>{stock.get('period_low', 0.0):.2f}</td>"  # Use period_low
         row_html += f"<td style='text-align: right;'>{volume_str}</td>"
         row_html += f"<td style='text-align: right;'>{avg_volume_str}</td>" # Add avg volume (50d)
@@ -245,10 +256,10 @@ if __name__ == '__main__':
 
     # Dummy data matching the new output of screener_logic (including metrics dict)
     dummy_stocks = [
-        {'symbol': 'RELIANCE', 'isin': 'INE002A01018', 'close': 2880.50, 'period_high': 2900.00, 'period_low': 1400.00, 'volume': 1234567, 'avg_volume_50d': 800000, 'timestamp': datetime.now(), 'metrics': {'volume_ratio': 1.54, 'price_drop_pct': 0.67, 'ema_50': 2850.10}},
-        {'symbol': 'TCS', 'isin': 'INE467B01029', 'close': 3465.20, 'period_high': 3500.00, 'period_low': 1700.00, 'volume': 890123.0, 'avg_volume_50d': 500000, 'timestamp': datetime.now(), 'metrics': {'volume_ratio': 1.78, 'price_drop_pct': 0.99, 'ema_50': 3400.50}},
-        {'symbol': 'HDFCBANK', 'isin': 'INE040A01034', 'close': 1622.80, 'period_high': 1650.00, 'period_low': 800.00, 'volume': 2500000, 'avg_volume_50d': 1500000, 'timestamp': datetime.now(), 'metrics': {'volume_ratio': 1.67, 'price_drop_pct': 1.65, 'ema_50': 1605.20}},
-        {'symbol': 'INFY', 'isin': 'INE009A01021', 'close': 1500.00, 'period_high': 1510.00, 'period_low': 700.00, 'volume': 1800000, 'avg_volume_50d': 1000000, 'timestamp': datetime.now(), 'metrics': {'volume_ratio': 1.80, 'price_drop_pct': 0.66, 'ema_50': 1480.90}},
+        {'symbol': 'RELIANCE', 'isin': 'INE002A01018', 'close': 2880.50, 'period_high': 2900.00, 'period_low': 1400.00, 'volume': 1234567, 'avg_volume_50d': 800000, 'timestamp': datetime.now(), 'metrics': {'volume_ratio': 1.54, 'price_drop_pct': 0.67, 'ema_50': 2850.10, 'ema_20': 2865.50}}, # Added ema_20
+        {'symbol': 'TCS', 'isin': 'INE467B01029', 'close': 3465.20, 'period_high': 3500.00, 'period_low': 1700.00, 'volume': 890123.0, 'avg_volume_50d': 500000, 'timestamp': datetime.now(), 'metrics': {'volume_ratio': 1.78, 'price_drop_pct': 0.99, 'ema_50': 3400.50, 'ema_20': 3420.00}}, # Added ema_20
+        {'symbol': 'HDFCBANK', 'isin': 'INE040A01034', 'close': 1622.80, 'period_high': 1650.00, 'period_low': 800.00, 'volume': 2500000, 'avg_volume_50d': 1500000, 'timestamp': datetime.now(), 'metrics': {'volume_ratio': 1.67, 'price_drop_pct': 1.65, 'ema_50': 1605.20, 'ema_20': 1615.80}}, # Added ema_20
+        {'symbol': 'INFY', 'isin': 'INE009A01021', 'close': 1500.00, 'period_high': 1510.00, 'period_low': 700.00, 'volume': 1800000, 'avg_volume_50d': 1000000, 'timestamp': datetime.now(), 'metrics': {'volume_ratio': 1.80, 'price_drop_pct': 0.66, 'ema_50': 1480.90, 'ema_20': 1495.10}}, # Added ema_20
     ]
 
     report_file = get_report_filename()

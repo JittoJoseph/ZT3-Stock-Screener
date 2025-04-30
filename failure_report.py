@@ -9,21 +9,23 @@ from utils.helpers import logging, get_report_filename # Assuming get_report_fil
 import config
 
 # Constants from screener_logic for context in report
-LOOKBACK_PERIOD = config.settings['screener']['lookback_period'] # Now 50 from config
-MIN_CLOSE_PRICE = 10.0
+LOOKBACK_PERIOD = config.settings['screener']['lookback_period'] # 50
+MIN_CLOSE_PRICE = 25.0 # 25
 PRICE_DROP_FROM_HIGH_PERCENT_MAX = 10.0
 PRICE_DROP_FROM_HIGH_PERCENT_MIN = 0.0
-EMA_PERIOD = 50 # Updated EMA Period to 50
-AVG_VOLUME_LOOKBACK = 50 # Updated Avg Vol Lookback to 50
+EMA_PERIOD_LONG = 50 # Renamed
+EMA_PERIOD_SHORT = 20 # Added
+AVG_VOLUME_LOOKBACK = 50 # 50
 VOLUME_SURGE_MULTIPLIER = 2.0
 
-# Define rule names for clarity in the report (5 rules) - Updated Rules 3 & 5
+# Define rule names for clarity in the report (6 rules)
 RULE_NAMES = {
-    'passed_rule1': f'Drop% < {PRICE_DROP_FROM_HIGH_PERCENT_MAX}% ({LOOKBACK_PERIOD}d High)', # Added period
-    'passed_rule2': f'Drop% > {PRICE_DROP_FROM_HIGH_PERCENT_MIN}% ({LOOKBACK_PERIOD}d High)', # Added period
-    'passed_rule3': f'Close > EMA({EMA_PERIOD})', # Updated EMA period
+    'passed_rule1': f'Drop% < {PRICE_DROP_FROM_HIGH_PERCENT_MAX}% ({LOOKBACK_PERIOD}d High)',
+    'passed_rule2': f'Drop% > {PRICE_DROP_FROM_HIGH_PERCENT_MIN}% ({LOOKBACK_PERIOD}d High)',
+    'passed_rule3': f'Close > EMA({EMA_PERIOD_LONG})',
     'passed_rule4': f'Close > ₹{MIN_CLOSE_PRICE}',
-    'passed_rule5': f'Vol > {VOLUME_SURGE_MULTIPLIER}x Avg({AVG_VOLUME_LOOKBACK}d)' # Updated Avg Vol period
+    'passed_rule5': f'Vol > {VOLUME_SURGE_MULTIPLIER}x Avg({AVG_VOLUME_LOOKBACK}d)',
+    'passed_rule6': f'EMA({EMA_PERIOD_SHORT}) > EMA({EMA_PERIOD_LONG})' # Added Rule 6 Name
 }
 
 def _format_volume(volume_val):
@@ -40,17 +42,17 @@ def _format_volume(volume_val):
             return 'N/A'
     return 'N/A'
 
-def generate_failure_report(all_stocks_details, filename, min_rules_passed=4): # Changed default to 4
+def generate_failure_report(all_stocks_details, filename, min_rules_passed=5): # Changed default to 5 (out of 6)
     """
     Generates an HTML report analyzing stocks that failed the main screening
-    but passed at least `min_rules_passed` rules (out of 5).
+    but passed at least `min_rules_passed` rules (out of 6).
 
     Args:
         all_stocks_details (list): List of dictionaries returned by apply_screening
                                    for ALL processed stocks.
         filename (str): Path to save the HTML report.
         min_rules_passed (int): Minimum number of rules a stock must have passed
-                                to be included in this report (default 4). # Updated comment
+                                to be included in this report (default 5). # Updated comment
     """
     # Filter stocks that failed overall but passed at least min_rules_passed
     # Also exclude stocks skipped due to data issues or errors
@@ -63,7 +65,7 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=4): #
     ]
 
     if not nearly_passed_stocks:
-        logging.info(f"No stocks passed at least {min_rules_passed}/5 rules. Failure analysis report will not be generated.") # Updated log message
+        logging.info(f"No stocks passed at least {min_rules_passed}/6 rules. Failure analysis report will not be generated.") # Updated log message
         return False # Indicate report was not generated
 
     report_dir = os.path.dirname(filename)
@@ -89,9 +91,10 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=4): #
                 short_name = rule_desc.split('(')[0].strip() # General short name
                 if rule_key == 'passed_rule1': short_name = "Drop%<10"
                 elif rule_key == 'passed_rule2': short_name = "Drop%>0"
-                elif rule_key == 'passed_rule3': short_name = f"Close>EMA{EMA_PERIOD}" # Updated short name
-                elif rule_key == 'passed_rule4': short_name = "Price>10"
+                elif rule_key == 'passed_rule3': short_name = f"Close>EMA{EMA_PERIOD_LONG}"
+                elif rule_key == 'passed_rule4': short_name = f"Price>{MIN_CLOSE_PRICE}" # Updated short name
                 elif rule_key == 'passed_rule5': short_name = f"Vol>{VOLUME_SURGE_MULTIPLIER}x"
+                elif rule_key == 'passed_rule6': short_name = f"EMA{EMA_PERIOD_SHORT}>EMA{EMA_PERIOD_LONG}" # Added short name for Rule 6
                 failed_rules_list.append(short_name)
         stock['failed_rules_display'] = ', '.join(failed_rules_list) if failed_rules_list else "None"
 
@@ -138,13 +141,13 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=4): #
 <body>
     <div class="container">
         <h1>Failure Analysis Report</h1>
-        <p class="subtitle">Screening Date: {screening_date_str} (Showing stocks passing ≥ {min_rules_passed}/5 rules)</p> <!-- Updated subtitle text -->
+        <p class="subtitle">Screening Date: {screening_date_str} (Showing stocks passing ≥ {min_rules_passed}/6 rules)</p> <!-- Updated subtitle text -->
 
         <div class="summary">
             <h2>Failure Summary</h2>
             <p>Total stocks processed (with valid data): {total_valid_processed}</p>
-            <p>Stocks passing all 5 criteria: {total_passed_all}</p>
-            <p>Stocks included in this report (passed ≥ {min_rules_passed}/5 rules): {len(nearly_passed_stocks)}</p> <!-- Updated summary text -->
+            <p>Stocks passing all 6 criteria: {total_passed_all}</p> <!-- Updated summary text -->
+            <p>Stocks included in this report (passed ≥ {min_rules_passed}/6 rules): {len(nearly_passed_stocks)}</p> <!-- Updated summary text -->
             <p>Most common failure reasons for stocks in this report:</p>
             <ul>
     """
@@ -166,11 +169,12 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=4): #
                         <th>#</th>
                         <th>Symbol</th>
                         <th>Close (₹)</th>
-                        <th>EMA({EMA_PERIOD}) (₹)</th> <!-- Updated EMA column header -->
+                        <th>EMA({EMA_PERIOD_SHORT}) (₹)</th> <!-- Added EMA(20) column header -->
+                        <th>EMA({EMA_PERIOD_LONG}) (₹)</th> <!-- Kept EMA(50) column header -->
                         <th>Period High (₹)</th>
                         <th>Period Low (₹)</th>
                         <th>Volume</th>
-                        <th>Avg Vol ({AVG_VOLUME_LOOKBACK}d)</th> <!-- Updated Avg Vol column header -->
+                        <th>Avg Vol ({AVG_VOLUME_LOOKBACK}d)</th>
                         <th>Vol Ratio</th>
                         <th>Rules Passed</th>
                         <th>Failed Rule(s)</th>
@@ -188,13 +192,14 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=4): #
                         <td>{i+1}</td>
                         <td>{stock.get('symbol', 'N/A')}</td>
                         <td class="numeric">{stock.get('close', 0.0):.2f}</td>
-                        <td class="numeric">{metrics.get('ema_50', 0.0):.2f}</td>
+                        <td class="numeric">{metrics.get('ema_20', 0.0):.2f}</td> <!-- Added EMA(20) value -->
+                        <td class="numeric">{metrics.get('ema_50', 0.0):.2f}</td> <!-- Kept EMA(50) value -->
                         <td class="numeric">{stock.get('period_high', 0.0):.2f}</td>
                         <td class="numeric">{stock.get('period_low', 0.0):.2f}</td>
                         <td class="numeric">{_format_volume(stock.get('volume'))}</td>
-                        <td class="numeric">{_format_volume(stock.get('avg_volume_50d'))}
+                        <td class="numeric">{_format_volume(stock.get('avg_volume_50d'))}</td>
                         <td class="numeric">{metrics.get('volume_ratio', 0.0):.2f}x</td>
-                        <td class="center pass">{stock.get('rules_passed_count', 0)}/5</td>
+                        <td class="center pass">{stock.get('rules_passed_count', 0)}/6</td> <!-- Updated total rules -->
                         <td class="fail">{stock.get('failed_rules_display', 'N/A')}</td>
                         <td class="numeric">{metrics.get('price_drop_pct', 0.0):.2f}%</td>
                     </tr>
@@ -223,9 +228,3 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=4): #
     except Exception as e:
         logging.error(f"An unexpected error occurred during failure analysis report generation: {e}")
         return False
-
-# Optional: Add __main__ block for testing if desired
-# if __name__ == '__main__':
-#     # Create dummy data similar to screener_logic output
-#     # Call generate_failure_report with dummy data and test filename
-#     pass
