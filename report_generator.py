@@ -28,19 +28,49 @@ EMA_PERIOD_LONG_REPORT = screener_config.get('ema_period_long', 50)
 EMA_PERIOD_SHORT_REPORT = screener_config.get('ema_period_short', 20)
 
 def generate_html_report(shortlisted_stocks, filename):
-    if not shortlisted_stocks:
-        logging.info("No stocks passed screening. HTML report will not be generated.")
-        return
-
+    # Always create a report, even when no stocks are shortlisted
     report_dir = os.path.dirname(filename)
     os.makedirs(report_dir, exist_ok=True)
 
     screening_date_str = "N/A"
     if shortlisted_stocks and 'timestamp' in shortlisted_stocks[0]:
-         # Use the date part of the timestamp
          screening_date_str = shortlisted_stocks[0]['timestamp'].strftime('%Y-%m-%d')
+    else:
+         screening_date_str = datetime.now().strftime('%Y-%m-%d')
 
-    html_content = f"""
+    # If no stocks passed, craft a minimal content with a clear message and failure report link.
+    if not shortlisted_stocks:
+         html_content = f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Screener Report - {screening_date_str}</title>
+    <style>
+        /* ...existing styles... */
+        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; color: #212529; padding: 20px; }}
+        .container {{ max-width: 800px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }}
+        a {{ color: #007bff; text-decoration: none; }}
+        a:hover {{ text-decoration: underline; }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Daily Screener Report</h1>
+        <p class="subtitle">Screening Date: {screening_date_str}</p>
+        <p>No stocks passed the screening criteria today.</p>
+        <p>Please review the <a href="/failure-report.html" target="_blank">Failure Analysis Report</a> for further details.</p>
+        <div class="footer">
+            Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        </div>
+    </div>
+</body>
+</html>
+         """
+    else:
+         # ...existing content generation for when stocks are shortlisted...
+         html_content = f"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -204,36 +234,36 @@ def generate_html_report(shortlisted_stocks, filename):
                 <tbody>
 """
 
-    for i, stock in enumerate(shortlisted_stocks):
-        # Access metrics dictionary
-        metrics = stock.get('metrics', {})
-        # Use the helper for current and average volume
-        volume_str = _format_volume(stock.get('volume'))
-        avg_volume_str = _format_volume(stock.get('avg_volume_50d')) # Use updated key name
-        isin_val = stock.get('isin', 'N/A')
-        # Access volume_ratio from the metrics dictionary
-        volume_ratio_val = metrics.get('volume_ratio', 0.0) # Corrected access
-        ema_20_val = metrics.get('ema_20', 0.0) # Get EMA(20)
-        ema_50_val = metrics.get('ema_50', 0.0) # Get EMA(50)
+         for i, stock in enumerate(shortlisted_stocks):
+             # Access metrics dictionary
+             metrics = stock.get('metrics', {})
+             # Use the helper for current and average volume
+             volume_str = _format_volume(stock.get('volume'))
+             avg_volume_str = _format_volume(stock.get('avg_volume_50d')) # Use updated key name
+             isin_val = stock.get('isin', 'N/A')
+             # Access volume_ratio from the metrics dictionary
+             volume_ratio_val = metrics.get('volume_ratio', 0.0) # Corrected access
+             ema_20_val = metrics.get('ema_20', 0.0) # Get EMA(20)
+             ema_50_val = metrics.get('ema_50', 0.0) # Get EMA(50)
 
-        # Construct the table row string explicitly
-        row_html = "<tr>"
-        row_html += f"<td>{i+1}</td>"
-        row_html += f"<td>{stock.get('symbol', 'N/A')}</td>"
-        row_html += f"<td>{isin_val}</td>"
-        row_html += f"<td style='text-align: right;'>{stock.get('close', 0.0):.2f}</td>"
-        row_html += f"<td style='text-align: right;'>{ema_20_val:.2f}</td>" # Add EMA(20) value
-        row_html += f"<td style='text-align: right;'>{ema_50_val:.2f}</td>" # Add EMA(50) value
-        row_html += f"<td style='text-align: right;'>{stock.get('period_high', 0.0):.2f}</td>" # Use period_high
-        row_html += f"<td style='text-align: right;'>{stock.get('period_low', 0.0):.2f}</td>"  # Use period_low
-        row_html += f"<td style='text-align: right;'>{volume_str}</td>"
-        row_html += f"<td style='text-align: right;'>{avg_volume_str}</td>" # Add avg volume (50d)
-        row_html += f"<td style='text-align: right;'>{volume_ratio_val:.2f}x</td>" # Add volume ratio (Corrected)
-        row_html += "</tr>\n"
+             # Construct the table row string explicitly
+             row_html = "<tr>"
+             row_html += f"<td>{i+1}</td>"
+             row_html += f"<td>{stock.get('symbol', 'N/A')}</td>"
+             row_html += f"<td>{isin_val}</td>"
+             row_html += f"<td style='text-align: right;'>{stock.get('close', 0.0):.2f}</td>"
+             row_html += f"<td style='text-align: right;'>{ema_20_val:.2f}</td>" # Add EMA(20) value
+             row_html += f"<td style='text-align: right;'>{ema_50_val:.2f}</td>" # Add EMA(50) value
+             row_html += f"<td style='text-align: right;'>{stock.get('period_high', 0.0):.2f}</td>" # Use period_high
+             row_html += f"<td style='text-align: right;'>{stock.get('period_low', 0.0)::.2f}</td>"  # Use period_low
+             row_html += f"<td style='text-align: right;'>{volume_str}</td>"
+             row_html += f"<td style='text-align: right;'>{avg_volume_str}</td>" # Add avg volume (50d)
+             row_html += f"<td style='text-align: right;'>{volume_ratio_val:.2f}x</td>" # Add volume ratio (Corrected)
+             row_html += "</tr>\n"
 
-        html_content += row_html # Append the constructed row
+             html_content += row_html # Append the constructed row
 
-    html_content += """
+         html_content += """
                 </tbody>
             </table>
         </div>
@@ -246,13 +276,13 @@ def generate_html_report(shortlisted_stocks, filename):
 """
 
     try:
-        with open(filename, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-        logging.info(f"HTML report generated successfully: {filename}")
+         with open(filename, 'w', encoding='utf-8') as f:
+             f.write(html_content)
+         logging.info(f"HTML report generated successfully: {filename}")
     except IOError as e:
-        logging.error(f"Error writing HTML report to {filename}: {e}")
+         logging.error(f"Error writing HTML report to {filename}: {e}")
     except Exception as e:
-        logging.error(f"An unexpected error occurred during HTML report generation: {e}")
+         logging.error(f"An unexpected error occurred during HTML report generation: {e}")
 
 if __name__ == '__main__':
     logging.info("Testing report_generator module...")
