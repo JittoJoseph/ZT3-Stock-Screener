@@ -8,31 +8,32 @@ import os # Import os for basename
 import config
 from utils.helpers import logging
 
-# New constants for report URLs (update these if the page URL changes)
-SUCCESS_REPORT_URL = "https://jittojoseph.github.io/ZT3-Stock-Screener/"
-FAILURE_REPORT_URL = "https://jittojoseph.github.io/ZT3-Stock-Screener/failure-report.html"
-
 def send_discord_notification(
     shortlisted_stocks,
     duration_seconds=None
 ):
     """
     Sends a notification to the main Discord webhook.
-    Instead of sending file attachments, includes hyperlinks to the success and failure reports.
-    
-    Args:
-        shortlisted_stocks (list): List of stocks passing all criteria.
-        report_filename (str, optional): Path to the success HTML report.
-        failure_report_filename (str, optional): Path to the failure analysis HTML report.
-        duration_seconds (float, optional): Time taken for screening.
+    Instead of sending file attachments, includes hyperlinks to the day-specific success and failure reports.
     """
     webhook_url = config.get_discord_webhook_url()
     if not webhook_url:
         logging.warning("Discord webhook URL not configured. Skipping notification.")
         return
 
-    screening_date = datetime.now(timezone.utc)
-    screening_date_str = screening_date.strftime('%d %B %Y')
+    # Determine trading/report date based on shortlisted stocks or fallback to today.
+    if shortlisted_stocks:
+         dates = [s.get('timestamp') for s in shortlisted_stocks if s.get('timestamp')]
+         report_date = max(dates).strftime("%Y%m%d") if dates else datetime.now().strftime("%Y%m%d")
+         screening_date_str = max(dates).strftime('%d %B %Y') if dates else datetime.now(timezone.utc).strftime('%d %B %Y')
+    else:
+         report_date = datetime.now().strftime("%Y%m%d")
+         screening_date_str = datetime.now(timezone.utc).strftime('%d %B %Y')
+
+    # Build day-specific report URLs
+    success_report_url = f"https://jittojoseph.github.io/ZT3-Stock-Screener/success_report_{report_date}.html"
+    failure_report_url = f"https://jittojoseph.github.io/ZT3-Stock-Screener/failure_report_{report_date}.html"
+
     username = "ZT-3 Screener"
     duration_str = f"{duration_seconds:.2f}s" if duration_seconds is not None and duration_seconds <= 60 else (
                    f"{int(duration_seconds//60)}m {int(duration_seconds%60)}s" if duration_seconds is not None else "")
@@ -44,17 +45,10 @@ def send_discord_notification(
         logging.error(f"Error formatting IST time: {e}")
         now_formatted_str = datetime.now(timezone.utc).strftime('%d %b %Y, %H:%M UTC')
 
-    # Before building report_links, add:
-    if shortlisted_stocks:
-         dates = [s.get('timestamp') for s in shortlisted_stocks if s.get('timestamp')]
-         screening_date_str = max(dates).strftime('%d %B %Y') if dates else datetime.now(timezone.utc).strftime('%d %B %Y')
-    else:
-         screening_date_str = datetime.now(timezone.utc).strftime('%d %B %Y')
-
-    # Build common report links text
-    report_links = (f"[Success Report]({SUCCESS_REPORT_URL}) | "
-                    f"[Failure Analysis Report]({FAILURE_REPORT_URL})")
-
+    # Build common report links text with day-specific URLs
+    report_links = (f"[Success Report]({success_report_url}) | "
+                    f"[Failure Analysis Report]({failure_report_url})")
+    
     if not shortlisted_stocks:
         logging.info("No stocks passed screening. Sending 'No Results' notification.")
         description = ("No stocks met the screening criteria today.\n\n"
