@@ -86,50 +86,68 @@ def load_stock_list(filename=None):
 
     return stocks
 
+def delete_old_reports_in_directory(directory):
+    """
+    Deletes report files in the given directory that are older than the last 5 trading days.
+    Expected filename patterns: success_report_YYYYMMDD.html or failure_report_YYYYMMDD.html.
+    """
+    if not os.path.isdir(directory):
+        logging.info(f"Directory '{directory}' does not exist. No reports to delete.")
+        return
+    try:
+        # Process Success Reports
+        success_files = [f for f in os.listdir(directory) if f.startswith('success_report_') and f.endswith('.html')]
+        success_by_date = {}
+        for filename in success_files:
+            try:
+                date_str = filename.split('_')[2].split('.')[0]  # e.g. "20250430"
+                success_by_date.setdefault(date_str, []).append(filename)
+            except Exception as e:
+                logging.warning(f"Could not parse trading date from success report file {filename}: {e}")
+        sorted_success_dates = sorted(success_by_date.keys(), reverse=True)
+        keep_success = set(sorted_success_dates[:5])
+        files_to_delete = []
+        for date_str, files in success_by_date.items():
+            if date_str not in keep_success:
+                for f in files:
+                    files_to_delete.append(os.path.join(directory, f))
+        
+        # Process Failure Reports
+        failure_files = [f for f in os.listdir(directory) if f.startswith('failure_report_') and f.endswith('.html')]
+        failure_by_date = {}
+        for filename in failure_files:
+            try:
+                date_str = filename.split('_')[2].split('.')[0]
+                failure_by_date.setdefault(date_str, []).append(filename)
+            except Exception as e:
+                logging.warning(f"Could not parse trading date from failure report file {filename}: {e}")
+        sorted_failure_dates = sorted(failure_by_date.keys(), reverse=True)
+        keep_failure = set(sorted_failure_dates[:5])
+        for date_str, files in failure_by_date.items():
+            if date_str not in keep_failure:
+                for f in files:
+                    files_to_delete.append(os.path.join(directory, f))
+        
+        if files_to_delete:
+            logging.info(f"Found {len(files_to_delete)} report file(s) in '{directory}' older than the last 5 trading days. Deleting them.")
+            for f_path in files_to_delete:
+                try:
+                    os.remove(f_path)
+                    logging.info(f"Deleted old report: {f_path}")
+                except OSError as e:
+                    logging.error(f"Error deleting report file {f_path}: {e}")
+        else:
+            logging.info(f"No old report files to delete in '{directory}' beyond the last 5 trading days.")
+    except Exception as e:
+        logging.error(f"An error occurred during deletion of reports in '{directory}': {e}")
+
 def manage_reports():
     report_dir = config.settings['paths']['report_dir']
-    # max_reports = config.settings['reporting']['max_reports'] # No longer used directly
-
-    if not os.path.isdir(report_dir):
-        logging.info(f"Report directory '{report_dir}' does not exist. No reports to manage.")
-        return
-
-    try:
-        all_files = [os.path.join(report_dir, f) for f in os.listdir(report_dir) if f.endswith('.html')]
-
-        success_reports = [f for f in all_files if os.path.basename(f).startswith('success_report_')]
-        failure_reports = [f for f in all_files if os.path.basename(f).startswith('failure_analysis_')]
-
-        files_to_delete = []
-
-        # Process success reports
-        if success_reports:
-            success_reports.sort(key=os.path.getmtime, reverse=True) # Sort newest first
-            files_to_delete.extend(success_reports[1:]) # Add all except the newest one to delete list
-
-        # Process failure reports
-        if failure_reports:
-            failure_reports.sort(key=os.path.getmtime, reverse=True) # Sort newest first
-            files_to_delete.extend(failure_reports[1:]) # Add all except the newest one to delete list
-
-        if not files_to_delete:
-            logging.info("No old reports found to delete.")
-            return
-
-        logging.info(f"Found {len(files_to_delete)} old report(s) to delete.")
-        deleted_count = 0
-        for f_path in files_to_delete:
-            try:
-                os.remove(f_path)
-                logging.info(f"Deleted old report: {os.path.basename(f_path)}")
-                deleted_count += 1
-            except OSError as e:
-                logging.error(f"Error deleting report file {f_path}: {e}")
-
-        logging.info(f"Report cleanup complete. Deleted {deleted_count} old report(s).")
-
-    except Exception as e:
-        logging.error(f"An error occurred during report management: {e}")
+    # Delete old reports in the reports folder
+    delete_old_reports_in_directory(report_dir)
+    # Also, delete old reports in the docs folder
+    docs_dir = os.path.join(os.path.dirname(__file__), "..", "docs")
+    delete_old_reports_in_directory(docs_dir)
 
 def get_report_filename(prefix="report_", use_date_only=False, report_date=None):
     """

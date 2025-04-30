@@ -41,6 +41,9 @@ def generate_html_report(shortlisted_stocks, filename):
 
     # If no stocks passed, craft a minimal content with a clear message and failure report link.
     if not shortlisted_stocks:
+         # Use day-specific filename for failure report link
+         date_for_link = screening_date_str.replace("-", "")  # e.g. "20250430"
+         failure_report_link = f"failure_report_{date_for_link}.html"
          html_content = f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -49,7 +52,6 @@ def generate_html_report(shortlisted_stocks, filename):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Daily Screener Report - {screening_date_str}</title>
     <style>
-        /* ...existing styles... */
         body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8f9fa; color: #212529; padding: 20px; }}
         .container {{ max-width: 800px; margin: 0 auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); text-align: center; }}
         a {{ color: #007bff; text-decoration: none; }}
@@ -61,7 +63,7 @@ def generate_html_report(shortlisted_stocks, filename):
         <h1>Daily Screener Report</h1>
         <p class="subtitle">Screening Date: {screening_date_str}</p>
         <p>No stocks passed the screening criteria today.</p>
-        <p>Please review the <a href="failure-report.html" target="_blank">Failure Analysis Report</a> for further details.</p>
+        <p>Please review the <a href="{failure_report_link}" target="_blank">Failure Analysis Report</a> for further details.</p>
         <div class="footer">
             Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
         </div>
@@ -70,7 +72,6 @@ def generate_html_report(shortlisted_stocks, filename):
 </html>
          """
     else:
-         # ...existing content generation for when stocks are shortlisted...
          html_content = f"""
 <!DOCTYPE html>
 <html lang="en">

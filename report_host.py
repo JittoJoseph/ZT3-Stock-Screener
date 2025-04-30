@@ -101,7 +101,7 @@ def update_landing_page():
     It displays two sections:
       - Latest 5 Trading Days Success Reports
       - Latest 5 Trading Days Failure Reports
-    Any reports older than the last 5 trading days are ignored.
+    Each link is built using the trading date parsed from the filename.
     """
     report_dir = config.settings['paths']['report_dir']
     
@@ -127,7 +127,7 @@ def update_landing_page():
         except Exception as e:
             link_text = day
         success_links_html += f'<li><a href="{report_file}">{link_text} Success Report</a></li>\n'
-
+    
     # Process Failure Reports
     failure_files = glob.glob(os.path.join(report_dir, "failure_report_????????.html"))
     daily_failure = {}
@@ -150,8 +150,7 @@ def update_landing_page():
         except Exception as e:
             link_text = day
         failure_links_html += f'<li><a href="{report_file}">{link_text} Failure Report</a></li>\n'
-
-    # Build the landing page HTML with two sections
+    
     landing_html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
