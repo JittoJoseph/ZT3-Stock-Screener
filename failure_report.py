@@ -154,6 +154,13 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=None)
             .summary li {{ font-size: 0.95em; }}
             th, td {{ padding: 8px 10px; font-size: 0.9em; white-space: nowrap; }}
         }}
+        
+        /* Add hover effect for desktop view - matches report_generator.py */
+        @media (min-width: 768px) {{
+            tr:hover {{
+                background-color: #e2e6ea;
+            }}
+        }}
     </style>
 </head>
 <body>
