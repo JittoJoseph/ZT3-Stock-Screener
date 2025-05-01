@@ -20,6 +20,8 @@ import time
 import json # Import json for discord payload
 import pytz # Import pytz for IST conversion
 import csv # Import csv module
+from concurrent.futures import ThreadPoolExecutor, as_completed  # NEW import
+import signal  # Add signal module for better interrupt handling
 
 # Import necessary functions from our modules
 import config
@@ -54,50 +56,72 @@ def validate_instrument_key(instrument_key, headers):
     encoded_instrument_key = requests.utils.quote(instrument_key)
 
     # Construct URL based on historical data endpoint structure
-    # Using the documented path: /historical-candle/{instrument_key}/{interval}/{to_date}/{from_date}
     url = f"https://api.upstox.com/{API_VERSION}/historical-candle/{encoded_instrument_key}/{VALIDATION_INTERVAL}/{to_date}/{from_date}"
     logging.debug(f"Validation URL: {url}")
 
-    try:
-        response = requests.get(url, headers=headers, timeout=10) # Add timeout
-
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('status') == 'success':
-                # Even if 'candles' is empty, a 'success' status means the key is recognized
-                logging.debug(f"Validation success for {instrument_key} (Status: {data.get('status')})")
-                return True
-            else:
-                # API returned 200 OK but status was not 'success'
-                logging.warning(f"Validation failed for {instrument_key}. API Status: {data.get('status')}, Message: {data.get('message', 'N/A')}")
+    for attempt in range(2):  # Try twice
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                data = response.json()
+                if data.get('status') == 'success':
+                    logging.debug(f"Validation success for {instrument_key} (Status: {data.get('status')})")
+                    return True
+                else:
+                    logging.warning(f"Validation failed for {instrument_key}. API Status: {data.get('status')}, Message: {data.get('message', 'N/A')}")
+                    if attempt == 0:  # Only retry on first attempt
+                        logging.info(f"Retrying {instrument_key} after 3 seconds...")
+                        time.sleep(3)  # Increased from 1 to 3 seconds
+                        continue
+                    return False
+                    
+            elif response.status_code == 429:  # Rate limit hit
+                logging.warning(f"Rate limit hit for {instrument_key}. HTTP Status: 429.")
+                if attempt == 0:  # Only retry on first attempt
+                    logging.info(f"Retrying {instrument_key} after 3 seconds...")
+                    time.sleep(3)  # Increased from 1 to 3 seconds
+                    continue
                 return False
-        elif response.status_code == 404:
-             # Not Found likely means invalid instrument key
-             logging.warning(f"Validation failed for {instrument_key}. HTTP Status: 404 (Not Found)")
-             return False
-        elif response.status_code == 400:
-             # Bad Request often indicates an invalid format or unrecognized key by the API logic
-             try:
-                 error_data = response.json()
-                 error_msg = error_data.get('errors', [{}])[0].get('message', response.text[:100])
-                 logging.warning(f"Validation failed for {instrument_key}. HTTP Status: 400 (Bad Request). Reason: {error_msg}")
-             except json.JSONDecodeError:
-                 logging.warning(f"Validation failed for {instrument_key}. HTTP Status: 400 (Bad Request). Response: {response.text[:200]}")
-             return False
-        else:
-            # Other HTTP errors
-            logging.error(f"Validation HTTP error for {instrument_key}. Status: {response.status_code}, Response: {response.text[:200]}")
-            return False
+                
+            elif response.status_code == 404:
+                logging.warning(f"Validation failed for {instrument_key}. HTTP Status: 404 (Not Found)")
+                return False  # Don't retry on 404
+                
+            elif response.status_code == 400:
+                try:
+                    error_data = response.json()
+                    error_msg = error_data.get('errors', [{}])[0].get('message', response.text[:100])
+                    logging.warning(f"Validation failed for {instrument_key}. HTTP Status: 400 (Bad Request). Reason: {error_msg}")
+                except json.JSONDecodeError:
+                    logging.warning(f"Validation failed for {instrument_key}. HTTP Status: 400 (Bad Request). Response: {response.text[:200]}")
+                return False  # Don't retry on 400
+                
+            else:
+                logging.error(f"Validation HTTP error for {instrument_key}. Status: {response.status_code}, Response: {response.text[:200]}")
+                if attempt == 0:  # Only retry on first attempt
+                    logging.info(f"Retrying {instrument_key} after 3 seconds...")
+                    time.sleep(3)  # Increased from 1 to 3 seconds
+                    continue
+                return False
 
-    except requests.exceptions.Timeout:
-        logging.error(f"Validation timeout for {instrument_key}")
-        return False # Treat timeout as failure
-    except requests.exceptions.RequestException as e:
-        logging.error(f"Validation request error for {instrument_key}: {e}")
-        return False
-    except Exception as e:
-        logging.error(f"Unexpected error during validation for {instrument_key}: {e}")
-        return False
+        except (requests.exceptions.Timeout, requests.exceptions.RequestException) as e:
+            logging.error(f"Validation request error for {instrument_key} on attempt {attempt+1}: {e}")
+            if attempt == 0:  # Only retry on first attempt
+                logging.info(f"Retrying {instrument_key} after 3 seconds...")
+                time.sleep(3)  # Increased from 1 to 3 seconds
+                continue
+            return False
+            
+        except Exception as e:
+            logging.error(f"Unexpected error during validation for {instrument_key} on attempt {attempt+1}: {e}")
+            if attempt == 0:  # Only retry on first attempt
+                logging.info(f"Retrying {instrument_key} after 3 seconds...")
+                time.sleep(3)  # Increased from 1 to 3 seconds
+                continue
+            return False
+            
+    return False  # If we get here, all attempts failed
 
 def send_stocklist_to_discord(valid_stocks, invalid_stocks, total_checked, duration_seconds, webhook_url):
     """Sends a summary of validation results (valid count, invalid list) to Discord."""
@@ -246,46 +270,105 @@ def run_validation():
         return
 
     logging.info(f"Found {len(stocks)} stocks to validate.")
-    valid_count = 0
-    invalid_count = 0
     results = {'valid': [], 'invalid': []}
 
-    # 3. Iterate and Validate
-    validation_loop_start_time = time.time() # Time just the loop if preferred
-    for i, stock in enumerate(stocks):
+    # New helper for threaded processing
+    def process_stock(index, stock):
         symbol = stock['symbol']
         isin = stock['isin']
         instrument_key = f"{EXCHANGE}_{INSTRUMENT_TYPE}|{isin}"
-
         is_valid = validate_instrument_key(instrument_key, headers)
+        # No additional delay here - validate_instrument_key already has retry logic with delays
+        return index, stock, is_valid
 
-        if is_valid:
-            # Log in the desired format: Index. [STATUS] SYMBOL (ISIN)
-            logging.info(f"{i+1}. [VALID] {symbol} ({isin})")
-            valid_count += 1
-            results['valid'].append({'symbol': symbol, 'isin': isin, 'instrument_key': instrument_key})
+    # Set up signal handler for better interrupt handling
+    interrupted = False
+    def signal_handler(sig, frame):
+        nonlocal interrupted
+        if not interrupted:
+            logging.warning("Interrupt signal received. Shutting down gracefully...")
+            interrupted = True
         else:
-            # Log in the desired format: Index. [STATUS] SYMBOL (ISIN)
-            logging.warning(f"{i+1}. [INVALID] {symbol} ({isin})") # Simplified status
-            invalid_count += 1
-            results['invalid'].append({'symbol': symbol, 'isin': isin, 'instrument_key': instrument_key})
+            logging.warning("Second interrupt received. Forcing exit...")
+            sys.exit(1)
+    
+    original_handler = signal.getsignal(signal.SIGINT)
+    signal.signal(signal.SIGINT, signal_handler)
 
-        # Optional: Add a small delay between requests to avoid rate limiting
-        time.sleep(0.2) # 200ms delay
-    validation_loop_end_time = time.time() # End time for the loop
-
-    # Calculate duration
+    # Use ThreadPoolExecutor for parallel validation with more workers
+    valid_count = 0
+    invalid_count = 0
+    validation_loop_start_time = time.time()
+    
+    # Enable catching KeyboardInterrupt during thread execution
+    try:
+        with ThreadPoolExecutor(max_workers=4) as executor:  # Increased workers
+            # Submit all jobs at once
+            futures_to_stock = {
+                executor.submit(process_stock, i, stock): (i, stock) 
+                for i, stock in enumerate(stocks)
+            }
+            
+            # Process completed futures as they finish
+            for future in as_completed(futures_to_stock):
+                if interrupted:
+                    logging.warning("Processing interrupted. Skipping remaining stocks.")
+                    break
+                
+                try:
+                    index, stock, is_valid = future.result()
+                    symbol = stock['symbol']
+                    isin = stock['isin']
+                    
+                    if is_valid:
+                        logging.info(f"{index+1}. [VALID] {symbol} ({isin})")
+                        valid_count += 1
+                        results['valid'].append({
+                            'symbol': symbol, 
+                            'isin': isin, 
+                            'instrument_key': f"{EXCHANGE}_{INSTRUMENT_TYPE}|{isin}"
+                        })
+                    else:
+                        logging.warning(f"{index+1}. [INVALID] {symbol} ({isin})")
+                        invalid_count += 1
+                        results['invalid'].append({
+                            'symbol': symbol, 
+                            'isin': isin, 
+                            'instrument_key': f"{EXCHANGE}_{INSTRUMENT_TYPE}|{isin}"
+                        })
+                except Exception as e:
+                    # Get the original stock info from the futures mapping
+                    i, stock = futures_to_stock[future]
+                    logging.error(f"Error processing stock {stock['symbol']}: {e}")
+                    invalid_count += 1
+                    results['invalid'].append({
+                        'symbol': stock['symbol'], 
+                        'isin': stock['isin'], 
+                        'instrument_key': f"{EXCHANGE}_{INSTRUMENT_TYPE}|{stock['isin']}",
+                        'error': str(e)
+                    })
+    
+    except KeyboardInterrupt:
+        interrupted = True
+        logging.warning("Keyboard interrupt received. Shutting down gracefully...")
+    finally:
+        # Restore original signal handler
+        signal.signal(signal.SIGINT, original_handler)
+        
+    if interrupted:
+        logging.warning("Validation was interrupted before completion.")
+        logging.warning(f"Processed {valid_count + invalid_count} of {len(stocks)} stocks before interruption.")
+        
+    validation_loop_end_time = time.time()
     total_duration_seconds = validation_loop_end_time - validation_loop_start_time
 
-    # 4. Print Summary & Log Invalid
     logging.info("-" * 50)
     logging.info("Validation Summary:")
     logging.info(f"Total Stocks Checked: {len(stocks)}")
     logging.info(f"Valid Instrument Keys: {valid_count}")
     logging.info(f"Invalid/Error Keys: {invalid_count}")
-    logging.info(f"Validation Duration: {total_duration_seconds:.2f} seconds") # Log duration
+    logging.info(f"Validation Duration: {total_duration_seconds:.2f} seconds")
     logging.info("-" * 50)
-
     if results['invalid']:
         logging.warning("Invalid ISINs/Symbols found:")
         for item in results['invalid']:
@@ -348,4 +431,8 @@ if __name__ == "__main__":
          print(f"Error importing utils.helpers: {e}. Ensure script is run from project root or PYTHONPATH is set.")
          sys.exit(1)
 
-    run_validation()
+    try:
+        run_validation()
+    except KeyboardInterrupt:
+        print("\nScript interrupted by user. Exiting.")
+        sys.exit(1)

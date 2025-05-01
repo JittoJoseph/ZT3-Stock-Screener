@@ -268,16 +268,16 @@ def generate_html_report(shortlisted_stocks, filename):
              html_content += row_html # Append the constructed row
 
          html_content += """
-                </tbody>
-            </table>
+            </tbody>
+          </table>
         </div>
         <div class="footer">
-            Generated on: """ + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + """
+          Generated on: """ + datetime.now().strftime('%Y-%m-%d %I:%M %p') + """
         </div>
-    </div>
-</body>
-</html>
-"""
+      </div>
+    </body>
+    </html>
+    """
 
     try:
          with open(filename, 'w', encoding='utf-8') as f:
