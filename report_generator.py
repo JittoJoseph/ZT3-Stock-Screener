@@ -249,11 +249,15 @@ def generate_html_report(shortlisted_stocks, filename):
              volume_ratio_val = metrics.get('volume_ratio', 0.0) # Corrected access
              ema_20_val = metrics.get('ema_20', 0.0) # Get EMA(20)
              ema_50_val = metrics.get('ema_50', 0.0) # Get EMA(50)
+             
+             # Get symbol and create TradingView URL
+             symbol = stock.get('symbol', 'N/A')
+             tradingview_url = f"https://www.tradingview.com/chart/?symbol=NSE%3A{symbol}"
 
              # Construct the table row string explicitly
              row_html = "<tr>"
              row_html += f"<td>{i+1}</td>"
-             row_html += f"<td>{stock.get('symbol', 'N/A')}</td>"
+             row_html += f"<td><a href=\"{tradingview_url}\" target=\"_blank\">{symbol}</a></td>"
              row_html += f"<td>{isin_val}</td>"
              row_html += f"<td style='text-align: right;'>{stock.get('close', 0.0):.2f}</td>"
              row_html += f"<td style='text-align: right;'>{ema_20_val:.2f}</td>" # Add EMA(20) value
