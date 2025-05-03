@@ -20,8 +20,11 @@ MIN_CLOSE_PRICE = screener_config.get('min_price', 25.0)
 MAX_PRICE = screener_config.get('max_price', 1500.0)
 ENABLE_MAX_PRICE_LIMIT = screener_config.get('enable_max_price_limit', True)
 
-# Updated to 4 rules (removed Liquidity Filter rule)
-TOTAL_RULES = 4
+# Updated to 5 rules (added Closing > Opening rule)
+TOTAL_RULES = 5
+
+# Maximum number of failed rules to be included in the report
+MAX_FAILED_RULES = 2
 
 def generate_failure_report(failed_stocks, filename, min_rules_passed=0):
     """
@@ -43,6 +46,14 @@ def generate_failure_report(failed_stocks, filename, min_rules_passed=0):
     if min_rules_passed > 0:
         failed_stocks = [s for s in failed_stocks if s.get('rules_passed_count', 0) >= min_rules_passed]
     
+    # NEW: Filter stocks to only show ones that failed at most MAX_FAILED_RULES rules
+    # This means we only show stocks that passed at least (TOTAL_RULES - MAX_FAILED_RULES) rules
+    min_rules_to_show = TOTAL_RULES - MAX_FAILED_RULES
+    failed_stocks = [s for s in failed_stocks if s.get('rules_passed_count', 0) >= min_rules_to_show]
+    
+    # Track the total count before filtering for reporting
+    original_count = len(failed_stocks)
+    
     screening_date = datetime.now().strftime("%Y-%m-%d")
     if failed_stocks and 'timestamp' in failed_stocks[0]:
         dates = [s.get('timestamp') for s in failed_stocks if s.get('timestamp')]
@@ -57,7 +68,8 @@ def generate_failure_report(failed_stocks, filename, min_rules_passed=0):
         'rule1': 0,  # Trend Alignment: Close > EMA(20) > EMA(50) 
         'rule2': 0,  # Proximity to 50-Day High: 0% < Drop < 10%
         'rule3': 0,  # Volume Ratio: 2.0x < Ratio < 2.5x
-        'rule4': 0   # Price Range: 25 < Close < 1500
+        'rule4': 0,   # Price Range: 25 < Close < 1500
+        'rule5': 0    # Closing > Opening (Buying Volume)
     }
     
     # Count failures by rule
@@ -70,9 +82,12 @@ def generate_failure_report(failed_stocks, filename, min_rules_passed=0):
             rule_failures['rule3'] += 1
         if not stock.get('passed_rule4', True):
             rule_failures['rule4'] += 1
+        if not stock.get('passed_rule5', True):
+            rule_failures['rule5'] += 1
     
     # Calculate statistics
     almost_passed = len([s for s in failed_stocks if s.get('rules_passed_count', 0) == TOTAL_RULES - 1])
+    reasonably_close = len([s for s in failed_stocks if s.get('rules_passed_count', 0) == TOTAL_RULES - 2])
     
     # Create HTML content
     html_content = f"""
@@ -174,6 +189,9 @@ def generate_failure_report(failed_stocks, filename, min_rules_passed=0):
         .almost-passed {{
             background-color: #fff3cd;
         }}
+        .reasonably-close {{
+            background-color: #d1ecf1;
+        }}
         .rule-indicator {{
             width: 15px;
             height: 15px;
@@ -186,6 +204,13 @@ def generate_failure_report(failed_stocks, filename, min_rules_passed=0):
         }}
         .fail {{
             background-color: #dc3545;
+        }}
+        .note {{
+            padding: 10px;
+            background-color: #e2e3e5;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-style: italic;
         }}
         @media (max-width: 768px) {{
             .stats-grid {{
@@ -206,17 +231,23 @@ def generate_failure_report(failed_stocks, filename, min_rules_passed=0):
         <h1>Failure Analysis Report</h1>
         <p>Screening Date: {screening_date}</p>
         
+        <div class="note">
+            Showing only stocks that failed at most {MAX_FAILED_RULES} rules (out of {TOTAL_RULES} total rules).
+            {original_count - total_failed} stocks that failed more rules have been filtered out.
+        </div>
+        
         <div class="stats-box">
             <h2>Failure Statistics</h2>
             <div class="stats-grid">
                 <div class="stat-card">
-                    <h3>Total Stocks Failed</h3>
-                    <div class="stat-value">{total_failed}</div>
-                </div>
-                <div class="stat-card">
                     <h3>Almost Passed (Failed 1 Rule)</h3>
                     <div class="stat-value">{almost_passed}</div>
-                    <div class="stat-percent">{almost_passed/total_failed*100:.1f}% of failures</div>
+                    <div class="stat-percent">{almost_passed/total_failed*100:.1f}% of filtered failures</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Reasonably Close (Failed 2 Rules)</h3>
+                    <div class="stat-value">{reasonably_close}</div>
+                    <div class="stat-percent">{reasonably_close/total_failed*100:.1f}% of filtered failures</div>
                 </div>
                 <div class="stat-card">
                     <h3>Rule 1 Failures (Trend)</h3>
@@ -238,6 +269,11 @@ def generate_failure_report(failed_stocks, filename, min_rules_passed=0):
                     <div class="stat-value">{rule_failures['rule4']}</div>
                     <div class="stat-percent">{rule_failures['rule4']/total_failed*100:.1f}% of failures</div>
                 </div>
+                <div class="stat-card">
+                    <h3>Rule 5 Failures (Buy Volume)</h3>
+                    <div class="stat-value">{rule_failures['rule5']}</div>
+                    <div class="stat-percent">{rule_failures['rule5']/total_failed*100:.1f}% of failures</div>
+                </div>
             </div>
             
             <div class="rule-desc">
@@ -245,11 +281,12 @@ def generate_failure_report(failed_stocks, filename, min_rules_passed=0):
                 <p><strong>Rule 2:</strong> Proximity to {LOOKBACK_PERIOD}-Day High - {PRICE_DROP_FROM_HIGH_PERCENT_MIN}% < Price Drop < {PRICE_DROP_FROM_HIGH_PERCENT_MAX}%</p>
                 <p><strong>Rule 3:</strong> Volume Ratio - {VOLUME_SURGE_MULTIPLIER_MIN}x < Vol/{AVG_VOLUME_LOOKBACK}d Avg < {VOLUME_SURGE_MULTIPLIER_MAX}x</p>
                 <p><strong>Rule 4:</strong> Price Range - ₹{MIN_CLOSE_PRICE} < Close < ₹{MAX_PRICE}</p>
+                <p><strong>Rule 5:</strong> Buying Volume - Close > Open</p>
             </div>
         </div>
 
         <h2>Detailed Analysis</h2>
-        <p>The following stocks failed the screening criteria:</p>
+        <p>The following stocks failed 1-2 screening criteria:</p>
         
         <table>
             <thead>
@@ -263,6 +300,7 @@ def generate_failure_report(failed_stocks, filename, min_rules_passed=0):
                     <th>Rule 2<br>(Drop%)</th>
                     <th>Rule 3<br>(Vol)</th>
                     <th>Rule 4<br>(Price)</th>
+                    <th>Rule 5<br>(Buy Vol)</th>
                     <th>Reason</th>
                 </tr>
             </thead>
@@ -281,14 +319,20 @@ def generate_failure_report(failed_stocks, filename, min_rules_passed=0):
         rules_passed = stock.get('rules_passed_count', 0)
         reason = stock.get('reason', 'Unknown')
         
-        # Check if this stock almost passed (failed just one rule)
-        row_class = "almost-passed" if rules_passed == TOTAL_RULES - 1 else ""
+        # Determine row class based on how close it was to passing
+        if rules_passed == TOTAL_RULES - 1:
+            row_class = "almost-passed"  # Failed just 1 rule
+        elif rules_passed == TOTAL_RULES - 2:
+            row_class = "reasonably-close"  # Failed 2 rules
+        else:
+            row_class = ""
         
         # Create indicators for each rule
         rule1_class = "pass" if stock.get('passed_rule1', False) else "fail"
         rule2_class = "pass" if stock.get('passed_rule2', False) else "fail"
         rule3_class = "pass" if stock.get('passed_rule3', False) else "fail"
         rule4_class = "pass" if stock.get('passed_rule4', False) else "fail"
+        rule5_class = "pass" if stock.get('passed_rule5', False) else "fail"
         
         # Safe formatting - handle None and other invalid values
         close_str = f"{close:.2f}" if isinstance(close, (int, float)) and not pd.isna(close) else "N/A"
@@ -307,6 +351,7 @@ def generate_failure_report(failed_stocks, filename, min_rules_passed=0):
                     <td><span class="rule-indicator {rule2_class}"></span></td>
                     <td><span class="rule-indicator {rule3_class}"></span></td>
                     <td><span class="rule-indicator {rule4_class}"></span></td>
+                    <td><span class="rule-indicator {rule5_class}"></span></td>
                     <td>{reason}</td>
                 </tr>"""
     
@@ -327,8 +372,10 @@ def generate_failure_report(failed_stocks, filename, min_rules_passed=0):
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(html_content)
         logging.info(f"Failure analysis report generated: {filename}")
+        return True
     except Exception as e:
         logging.error(f"Error generating failure report: {e}")
+        return False
 
 if __name__ == "__main__":
     # Test code for the failure report generator
@@ -340,8 +387,8 @@ if __name__ == "__main__":
             'symbol': 'SBIN', 
             'close': 750.50, 
             'timestamp': datetime.now(),
-            'passed_rule1': True, 'passed_rule2': False, 'passed_rule3': True, 'passed_rule4': True,
-            'rules_passed_count': 3,
+            'passed_rule1': True, 'passed_rule2': False, 'passed_rule3': True, 'passed_rule4': True, 'passed_rule5': True,
+            'rules_passed_count': 4,
             'metrics': {'price_drop_pct': 12.5, 'volume_ratio': 2.2},
             'reason': "Failed: Rule2(Drop%)"
         },
@@ -349,10 +396,10 @@ if __name__ == "__main__":
             'symbol': 'INFY', 
             'close': 1650.75, 
             'timestamp': datetime.now(),
-            'passed_rule1': False, 'passed_rule2': False, 'passed_rule3': True, 'passed_rule4': False,
+            'passed_rule1': False, 'passed_rule2': False, 'passed_rule3': True, 'passed_rule4': False, 'passed_rule5': False,
             'rules_passed_count': 1,
             'metrics': {'price_drop_pct': 15.0, 'volume_ratio': 2.1},
-            'reason': "Failed: Rule1(Trend), Rule2(Drop%), Rule4(PriceRange)"
+            'reason': "Failed: Rule1(Trend), Rule2(Drop%), Rule4(PriceRange), Rule5(BuyVolume)"
         }
     ]
     

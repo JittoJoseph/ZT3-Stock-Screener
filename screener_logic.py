@@ -25,11 +25,15 @@ VOLUME_SURGE_MULTIPLIER_MAX = screener_config['volume_surge_max']
 MIN_CLOSE_PRICE = screener_config['min_price']
 MAX_PRICE = screener_config['max_price']
 
-TOTAL_RULES = 4
+# Rule 5: Closing > Opening (Buying Volume)
+# No config parameters needed for this rule
+
+# Update total rules count
+TOTAL_RULES = 5
 
 def apply_screening(df, symbol):
     """
-    Applies the 4 screening conditions and returns detailed results including 
+    Applies the 5 screening conditions and returns detailed results including 
     pass/fail status for each rule and the total number of rules passed.
 
     Args:
@@ -51,7 +55,7 @@ def apply_screening(df, symbol):
         'passed_rule2': False, # Proximity: 0% < Drop% < 10%
         'passed_rule3': False, # Volume Ratio: Between 2.0x and 2.5x
         'passed_rule4': False, # Price Range: ₹25 < Close < ₹1500
-        # Rule 5 (Liquidity Filter) removed
+        'passed_rule5': False, # Closing > Opening (Buying Volume)
         'rules_passed_count': 0,
         'metrics': {},
         'failed_overall': True,
@@ -79,6 +83,7 @@ def apply_screening(df, symbol):
 
         latest_candle = df.iloc[-1]
         latest_close = latest_candle['close']
+        latest_open = latest_candle['open']  # Get the opening price
         latest_volume = latest_candle['volume']
         latest_timestamp = latest_candle['timestamp']
         latest_ema_short = latest_candle['ema_short'] # EMA(20)
@@ -93,6 +98,7 @@ def apply_screening(df, symbol):
 
         results.update({
             'close': latest_close,
+            'open': latest_open,  # Add opening price to results
             'period_high': period_high,
             'period_low': period_low,
             'volume': latest_volume,
@@ -115,6 +121,7 @@ def apply_screening(df, symbol):
         results['metrics'] = {
             'price_drop_pct': price_drop_pct,
             'close_price': latest_close,
+            'open_price': latest_open,  # Add opening price to metrics
             'ema_20': latest_ema_short,
             'ema_50': latest_ema_long,
             'volume': latest_volume,
@@ -141,13 +148,17 @@ def apply_screening(df, symbol):
         if MIN_CLOSE_PRICE < latest_close < MAX_PRICE:
             results['passed_rule4'] = True
             rules_passed_count += 1
-
-        # Rule 5 (Liquidity Filter) removed
+            
+        # Rule 5: Closing > Opening (Buying Volume)
+        if latest_close > latest_open:
+            results['passed_rule5'] = True
+            rules_passed_count += 1
 
         # Update total count
         results['rules_passed_count'] = rules_passed_count
 
         # --- Logging Detailed Checks ---
+        logging.debug(f"[{symbol}] Latest Open: {latest_open:.2f}, Latest Close: {latest_close:.2f}")
         logging.debug(f"[{symbol}] Latest Close: {latest_close:.2f}, Latest Vol: {latest_volume:,.0f}, Avg Vol ({AVG_VOLUME_LOOKBACK}D): {avg_volume_lookback_val:,.0f}")
         logging.debug(f"[{symbol}] Period High ({LOOKBACK_PERIOD}D): {period_high:.2f}, Period Low ({LOOKBACK_PERIOD}D): {period_low:.2f}")
         logging.debug(f"[{symbol}] EMA({EMA_PERIOD_SHORT}): {latest_ema_short:.2f}, EMA({EMA_PERIOD_LONG}): {latest_ema_long:.2f}")
@@ -155,10 +166,11 @@ def apply_screening(df, symbol):
         logging.debug(f"[{symbol}] Rule 2 ({PRICE_DROP_FROM_HIGH_PERCENT_MIN}% < Drop < {PRICE_DROP_FROM_HIGH_PERCENT_MAX}%): {price_drop_pct:.2f}% -> {'PASS' if results['passed_rule2'] else 'FAIL'}")
         logging.debug(f"[{symbol}] Rule 3 ({VOLUME_SURGE_MULTIPLIER_MIN}x < Vol Ratio < {VOLUME_SURGE_MULTIPLIER_MAX}x): {volume_ratio:.2f}x -> {'PASS' if results['passed_rule3'] else 'FAIL'}")
         logging.debug(f"[{symbol}] Rule 4 (₹{MIN_CLOSE_PRICE} < Price < ₹{MAX_PRICE}): {latest_close:.2f} -> {'PASS' if results['passed_rule4'] else 'FAIL'}")
+        logging.debug(f"[{symbol}] Rule 5 (Close > Open): {latest_close:.2f} > {latest_open:.2f} -> {'PASS' if results['passed_rule5'] else 'FAIL'}")
         logging.debug(f"[{symbol}] Total Rules Passed: {rules_passed_count}/{TOTAL_RULES}")
 
         # --- Final Check: All conditions must be met ---
-        if rules_passed_count == TOTAL_RULES:  # Must pass all 4 rules
+        if rules_passed_count == TOTAL_RULES:  # Must pass all 5 rules
             results['failed_overall'] = False
             results['reason'] = "Passed all criteria"
             logging.info(f"[{symbol}] Passed all {TOTAL_RULES} screening conditions.")
@@ -169,6 +181,7 @@ def apply_screening(df, symbol):
             if not results['passed_rule2']: failed_rules.append(f"Rule2(Drop%)")
             if not results['passed_rule3']: failed_rules.append(f"Rule3(VolRatio)")
             if not results['passed_rule4']: failed_rules.append(f"Rule4(PriceRange)")
+            if not results['passed_rule5']: failed_rules.append(f"Rule5(BuyVolume)")
             results['reason'] = f"Failed: {', '.join(failed_rules)}"
             logging.info(f"[{symbol}] Did not pass all screening conditions. Passed {results['rules_passed_count']}/{TOTAL_RULES} rules.")
 
