@@ -1,164 +1,202 @@
 import os
-import pandas as pd
 from datetime import datetime
-import math
-import numpy as np
-from collections import Counter
-
+import pandas as pd
 from utils.helpers import logging, get_report_filename
-import config # Import config module
+import config
 
 # --- Constants from config.settings ---
 screener_config = config.settings['screener'] # Get the screener sub-dictionary
 
-LOOKBACK_PERIOD = screener_config['lookback_period']
-MIN_CLOSE_PRICE = screener_config['min_price']
-MAX_PRICE = screener_config['max_price']
-ENABLE_MAX_PRICE_LIMIT = screener_config['enable_max_price_limit']
-PRICE_DROP_FROM_HIGH_PERCENT_MAX = screener_config['price_drop_percent_max']
-PRICE_DROP_FROM_HIGH_PERCENT_MIN = screener_config['price_drop_percent_min']
-EMA_PERIOD_LONG = screener_config['ema_period_long']
-EMA_PERIOD_SHORT = screener_config['ema_period_short']
-AVG_VOLUME_LOOKBACK = screener_config['avg_volume_lookback']
-VOLUME_SURGE_MULTIPLIER_MIN = screener_config['volume_surge_min']
-VOLUME_SURGE_MULTIPLIER_MAX = screener_config['volume_surge_max']
+# Get constants for headers from config
+EMA_PERIOD_LONG = screener_config.get('ema_period_long', 50)
+EMA_PERIOD_SHORT = screener_config.get('ema_period_short', 20)
+LOOKBACK_PERIOD = screener_config.get('lookback_period', 50)
+AVG_VOLUME_LOOKBACK = screener_config.get('avg_volume_lookback', 50)
+PRICE_DROP_FROM_HIGH_PERCENT_MIN = screener_config.get('price_drop_percent_min', 0.0)
+PRICE_DROP_FROM_HIGH_PERCENT_MAX = screener_config.get('price_drop_percent_max', 10.0)
+VOLUME_SURGE_MULTIPLIER_MIN = screener_config.get('volume_surge_min', 2.0)
+VOLUME_SURGE_MULTIPLIER_MAX = screener_config.get('volume_surge_max', 2.5)
+MIN_CLOSE_PRICE = screener_config.get('min_price', 25.0)
+MAX_PRICE = screener_config.get('max_price', 1500.0)
+ENABLE_MAX_PRICE_LIMIT = screener_config.get('enable_max_price_limit', True)
 
-# Determine total rules based on config
-TOTAL_RULES = 7 if ENABLE_MAX_PRICE_LIMIT else 6
+# Updated to 4 rules (removed Liquidity Filter rule)
+TOTAL_RULES = 4
 
-# Define base rule names dynamically using config values
-RULE_NAMES = {
-    'passed_rule1': f'Drop% < {PRICE_DROP_FROM_HIGH_PERCENT_MAX}% ({LOOKBACK_PERIOD}d High)',
-    'passed_rule2': f'Drop% > {PRICE_DROP_FROM_HIGH_PERCENT_MIN}% ({LOOKBACK_PERIOD}d High)',
-    'passed_rule3': f'Close > EMA({EMA_PERIOD_LONG})',
-    'passed_rule4': f'Close > ₹{MIN_CLOSE_PRICE}',
-    'passed_rule5': f'{VOLUME_SURGE_MULTIPLIER_MIN}x < Vol Ratio < {VOLUME_SURGE_MULTIPLIER_MAX}x (Avg {AVG_VOLUME_LOOKBACK}d)',
-    'passed_rule6': f'EMA({EMA_PERIOD_SHORT}) > EMA({EMA_PERIOD_LONG})'
-}
-# Add Rule 7 name conditionally
-if ENABLE_MAX_PRICE_LIMIT:
-    RULE_NAMES['passed_rule7'] = f'Close <= ₹{MAX_PRICE}'
-
-def _format_volume(volume_val):
-    """Helper to format volume consistently."""
-    if isinstance(volume_val, (int, float, np.integer, np.floating)) and not math.isnan(volume_val):
-        try:
-            return f"{int(volume_val):,}"
-        except (ValueError, TypeError):
-            return 'N/A'
-    elif isinstance(volume_val, str) and volume_val.isdigit():
-        try:
-            return f"{int(volume_val):,}"
-        except (ValueError, TypeError):
-            return 'N/A'
-    return 'N/A'
-
-def generate_failure_report(all_stocks_details, filename, min_rules_passed=None): # Default min_rules_passed is now None
+def generate_failure_report(failed_stocks, filename, min_rules_passed=0):
     """
-    Generates an HTML report analyzing stocks that failed the main screening
-    but passed at least `min_rules_passed` rules.
-
+    Generates an HTML report detailing stocks that failed screening and why.
+    
     Args:
-        all_stocks_details (list): List of dictionaries returned by apply_screening.
-        filename (str): Path to save the HTML report.
-        min_rules_passed (int, optional): Minimum number of rules passed.
-                                          Defaults to TOTAL_RULES - 1.
+        failed_stocks (list): List of dictionaries with stock information and failure reasons.
+        filename (str): Path where the HTML report should be saved.
+        min_rules_passed (int, optional): Minimum number of rules that must be passed to include in report. Defaults to 0.
     """
-    # Set default min_rules_passed if not provided
-    if min_rules_passed is None:
-        min_rules_passed = TOTAL_RULES - 1
-
-    # Filter stocks that failed overall but passed at least min_rules_passed
-    nearly_passed_stocks = [
-        s for s in all_stocks_details
-        if s.get('failed_overall', True) and
-           s.get('rules_passed_count', 0) >= min_rules_passed and
-           s.get('reason') not in ["No data", "Insufficient data", "NaN/Zero in critical data"] and
-           not str(s.get('reason', '')).startswith("Error:")
-    ]
-
-    if not nearly_passed_stocks:
-        logging.info(f"No stocks passed at least {min_rules_passed}/{TOTAL_RULES} rules. Failure analysis report will not be generated.") # Use TOTAL_RULES
-        return False
-
     report_dir = os.path.dirname(filename)
     os.makedirs(report_dir, exist_ok=True)
-
-    # Replace the loop that sets screening_date_str with:
-    dates = [s.get('timestamp') for s in nearly_passed_stocks if s.get('timestamp')]
-    screening_date_str = max(dates).strftime('%Y-%m-%d') if dates else datetime.now().strftime('%Y-%m-%d')
-
-    # --- Analyze Failure Reasons ---
-    failure_counts = Counter()
-    total_valid_processed = len([s for s in all_stocks_details if s.get('reason') not in ["No data", "Insufficient data", "NaN/Zero in critical data"] and not str(s.get('reason','')).startswith('Error:')])
-    total_passed_all = len([s for s in all_stocks_details if not s.get('failed_overall', True)])
-
-    for stock in nearly_passed_stocks:
-        failed_rules_list = []
-        # Iterate through the potentially dynamic RULE_NAMES
-        for rule_key, rule_desc in RULE_NAMES.items():
-            # Check if the rule exists in the stock result (it might not if Rule 7 is disabled)
-            if rule_key in stock and not stock.get(rule_key, False):
-                failure_counts[rule_desc] += 1
-                # Extract a shorter name for the table display
-                short_name = rule_desc.split('(')[0].strip() # General short name
-                if rule_key == 'passed_rule1': short_name = f"Drop%<{PRICE_DROP_FROM_HIGH_PERCENT_MAX}" # Use config value
-                elif rule_key == 'passed_rule2': short_name = f"Drop%>{PRICE_DROP_FROM_HIGH_PERCENT_MIN}" # Use config value
-                elif rule_key == 'passed_rule3': short_name = f"Close>EMA{EMA_PERIOD_LONG}"
-                elif rule_key == 'passed_rule4': short_name = f"Price>{MIN_CLOSE_PRICE}"
-                elif rule_key == 'passed_rule5': short_name = f"{VOLUME_SURGE_MULTIPLIER_MIN}x<Vol<{VOLUME_SURGE_MULTIPLIER_MAX}x"
-                elif rule_key == 'passed_rule6': short_name = f"EMA{EMA_PERIOD_SHORT}>EMA{EMA_PERIOD_LONG}"
-                elif rule_key == 'passed_rule7': short_name = f"Price<={MAX_PRICE}" # Use config value
-                failed_rules_list.append(short_name)
-            # Handle case where Rule 7 is disabled but code iterates over it (shouldn't happen if RULE_NAMES is built correctly)
-            elif rule_key == 'passed_rule7' and rule_key not in stock:
-                 pass # Rule 7 is disabled, ignore
-
-        stock['failed_rules_display'] = ', '.join(failed_rules_list) if failed_rules_list else "None"
-
-    # --- Generate HTML ---
+    
+    # Handle None value for min_rules_passed
+    if min_rules_passed is None:
+        min_rules_passed = 0
+        
+    # Filter stocks based on min_rules_passed if specified
+    if min_rules_passed > 0:
+        failed_stocks = [s for s in failed_stocks if s.get('rules_passed_count', 0) >= min_rules_passed]
+    
+    screening_date = datetime.now().strftime("%Y-%m-%d")
+    if failed_stocks and 'timestamp' in failed_stocks[0]:
+        dates = [s.get('timestamp') for s in failed_stocks if s.get('timestamp')]
+        if dates:
+            screening_date = max(dates).strftime("%Y-%m-%d")
+    
+    # Read data and perform basic analysis
+    total_failed = len(failed_stocks)
+    
+    # Create rule-specific failure counts
+    rule_failures = {
+        'rule1': 0,  # Trend Alignment: Close > EMA(20) > EMA(50) 
+        'rule2': 0,  # Proximity to 50-Day High: 0% < Drop < 10%
+        'rule3': 0,  # Volume Ratio: 2.0x < Ratio < 2.5x
+        'rule4': 0   # Price Range: 25 < Close < 1500
+    }
+    
+    # Count failures by rule
+    for stock in failed_stocks:
+        if not stock.get('passed_rule1', True):
+            rule_failures['rule1'] += 1
+        if not stock.get('passed_rule2', True):
+            rule_failures['rule2'] += 1
+        if not stock.get('passed_rule3', True):
+            rule_failures['rule3'] += 1
+        if not stock.get('passed_rule4', True):
+            rule_failures['rule4'] += 1
+    
+    # Calculate statistics
+    almost_passed = len([s for s in failed_stocks if s.get('rules_passed_count', 0) == TOTAL_RULES - 1])
+    
+    # Create HTML content
     html_content = f"""
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Failure Analysis Report - {screening_date_str}</title>
+    <title>Failure Analysis Report - {screening_date}</title>
     <style>
-        body {{ font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f8f9fa; color: #212529; font-size: 16px; }}
-        .container {{ max-width: 1400px; margin: 20px auto; background-color: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }}
-        h1 {{ text-align: center; color: #dc3545; margin-bottom: 10px; font-size: 2em; }} /* Red for failure */
-        p.subtitle {{ text-align: center; color: #6c757d; margin-top: 0; margin-bottom: 30px; font-size: 1.1em; }}
-        .summary {{ background-color: #fdfdfe; border: 1px solid #dee2e6; padding: 15px; margin-bottom: 25px; border-radius: 5px; }}
-        .summary h2 {{ margin-top: 0; color: #495057; font-size: 1.3em; }}
-        .summary ul {{ list-style: none; padding: 0; }}
-        .summary li {{ margin-bottom: 8px; font-size: 1em; }}
-        .table-container {{ overflow-x: auto; }}
-        table {{ width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.95em; }}
-        th, td {{ border: 1px solid #dee2e6; padding: 10px 12px; text-align: left; vertical-align: middle; }}
-        th {{ background-color: #e9ecef; color: #495057; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }}
-        tr:nth-child(even) {{ background-color: #f8f9fa; }}
-        td.numeric {{ text-align: right; }}
-        td.center {{ text-align: center; }}
-        td.fail {{ color: #dc3545; font-weight: bold; }} /* Highlight failures */
-        td.pass {{ color: #28a745; }} /* Green for pass count */
-        .footer {{ margin-top: 30px; font-size: 0.9em; text-align: center; color: #6c757d; }}
-
-        /* Mobile adjustments */
-        @media (max-width: 767px) {{
-            body {{ padding: 10px; font-size: 14px; }}
-            .container {{ padding: 15px; }}
-            h1 {{ font-size: 1.6em; }}
-            p.subtitle {{ font-size: 1em; margin-bottom: 20px; }}
-            .summary h2 {{ font-size: 1.2em; }}
-            .summary li {{ font-size: 0.95em; }}
-            th, td {{ padding: 8px 10px; font-size: 0.9em; white-space: nowrap; }}
+        body {{
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #212529;
         }}
-        
-        /* Add hover effect for desktop view - matches report_generator.py */
-        @media (min-width: 768px) {{
-            tr:hover {{
-                background-color: #e2e6ea;
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }}
+        h1, h2 {{
+            color: #007bff;
+            margin-top: 0;
+        }}
+        .stats-box {{
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }}
+        .stats-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }}
+        .stat-card {{
+            background-color: #ffffff;
+            border-radius: 6px;
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            text-align: center;
+        }}
+        .stat-card h3 {{
+            margin-top: 0;
+            color: #6c757d;
+            font-size: 1em;
+            font-weight: normal;
+        }}
+        .stat-value {{
+            font-size: 2em;
+            font-weight: bold;
+            color: #343a40;
+            margin: 10px 0;
+        }}
+        .stat-percent {{
+            font-size: 0.9em;
+            color: #6c757d;
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }}
+        th, td {{
+            border: 1px solid #dee2e6;
+            padding: 8px 12px;
+            text-align: left;
+        }}
+        th {{
+            background-color: #e9ecef;
+            color: #495057;
+            font-weight: 600;
+        }}
+        tr:nth-child(even) {{
+            background-color: #f8f9fa;
+        }}
+        tr:hover {{
+            background-color: #e2e6ea;
+        }}
+        .footer {{
+            margin-top: 30px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9em;
+        }}
+        .rule-desc {{
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+        }}
+        .almost-passed {{
+            background-color: #fff3cd;
+        }}
+        .rule-indicator {{
+            width: 15px;
+            height: 15px;
+            display: inline-block;
+            margin-right: 5px;
+            border-radius: 50%;
+        }}
+        .pass {{
+            background-color: #28a745;
+        }}
+        .fail {{
+            background-color: #dc3545;
+        }}
+        @media (max-width: 768px) {{
+            .stats-grid {{
+                grid-template-columns: 1fr;
+            }}
+            .container {{
+                padding: 15px;
+            }}
+            table {{
+                display: block;
+                overflow-x: auto;
             }}
         }}
     </style>
@@ -166,92 +204,158 @@ def generate_failure_report(all_stocks_details, filename, min_rules_passed=None)
 <body>
     <div class="container">
         <h1>Failure Analysis Report</h1>
-        <p class="subtitle">Screening Date: {screening_date_str} (Showing stocks passing ≥ {min_rules_passed}/{TOTAL_RULES} rules)</p> <!-- Use TOTAL_RULES -->
-
-        <div class="summary">
-            <h2>Failure Summary</h2>
-            <p>Total stocks processed (with valid data): {total_valid_processed}</p>
-            <p>Stocks passing all {TOTAL_RULES} criteria: {total_passed_all}</p> <!-- Use TOTAL_RULES -->
-            <p>Stocks included in this report (passed ≥ {min_rules_passed}/{TOTAL_RULES} rules): {len(nearly_passed_stocks)}</p> <!-- Use TOTAL_RULES -->
-            <p>Most common failure reasons for stocks in this report:</p>
-            <ul>
-    """
-    # Add failure counts to summary
-    if failure_counts:
-        for reason, count in failure_counts.most_common():
-            html_content += f"<li>{reason}: {count} stock(s)</li>"
-    else:
-        html_content += "<li>No specific failure reasons identified for this subset.</li>"
-
-    html_content += f"""
-            </ul>
+        <p>Screening Date: {screening_date}</p>
+        
+        <div class="stats-box">
+            <h2>Failure Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Total Stocks Failed</h3>
+                    <div class="stat-value">{total_failed}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Almost Passed (Failed 1 Rule)</h3>
+                    <div class="stat-value">{almost_passed}</div>
+                    <div class="stat-percent">{almost_passed/total_failed*100:.1f}% of failures</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Rule 1 Failures (Trend)</h3>
+                    <div class="stat-value">{rule_failures['rule1']}</div>
+                    <div class="stat-percent">{rule_failures['rule1']/total_failed*100:.1f}% of failures</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Rule 2 Failures (Drop%)</h3>
+                    <div class="stat-value">{rule_failures['rule2']}</div>
+                    <div class="stat-percent">{rule_failures['rule2']/total_failed*100:.1f}% of failures</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Rule 3 Failures (Vol Ratio)</h3>
+                    <div class="stat-value">{rule_failures['rule3']}</div>
+                    <div class="stat-percent">{rule_failures['rule3']/total_failed*100:.1f}% of failures</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Rule 4 Failures (Price Range)</h3>
+                    <div class="stat-value">{rule_failures['rule4']}</div>
+                    <div class="stat-percent">{rule_failures['rule4']/total_failed*100:.1f}% of failures</div>
+                </div>
+            </div>
+            
+            <div class="rule-desc">
+                <p><strong>Rule 1:</strong> Trend Alignment - Close > EMA({EMA_PERIOD_SHORT}) > EMA({EMA_PERIOD_LONG})</p>
+                <p><strong>Rule 2:</strong> Proximity to {LOOKBACK_PERIOD}-Day High - {PRICE_DROP_FROM_HIGH_PERCENT_MIN}% < Price Drop < {PRICE_DROP_FROM_HIGH_PERCENT_MAX}%</p>
+                <p><strong>Rule 3:</strong> Volume Ratio - {VOLUME_SURGE_MULTIPLIER_MIN}x < Vol/{AVG_VOLUME_LOOKBACK}d Avg < {VOLUME_SURGE_MULTIPLIER_MAX}x</p>
+                <p><strong>Rule 4:</strong> Price Range - ₹{MIN_CLOSE_PRICE} < Close < ₹{MAX_PRICE}</p>
+            </div>
         </div>
-         """
 
-    html_content += f"""
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Symbol</th>
-                        <th>Close ₹</th>
-                        <th>EMA({EMA_PERIOD_SHORT}) ₹</th>
-                        <th>EMA({EMA_PERIOD_LONG}) ₹</th>
-                        <th>High ₹</th>
-                        <th>Low ₹</th>
-                        <th>Volume</th>
-                        <th>Avg Vol</th>
-                        <th>Vol Ratio</th>
-                        <th>Passed</th>
-                        <th>Failed</th>
-                        <th>Drop %</th>
-                    </tr>
-                </thead>
-                <tbody>
+        <h2>Detailed Analysis</h2>
+        <p>The following stocks failed the screening criteria:</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Close (₹)</th>
+                    <th>Drop %</th>
+                    <th>Vol Ratio</th>
+                    <th>Rules Passed</th>
+                    <th>Rule 1<br>(Trend)</th>
+                    <th>Rule 2<br>(Drop%)</th>
+                    <th>Rule 3<br>(Vol)</th>
+                    <th>Rule 4<br>(Price)</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody>
 """
-
-    # Populate table rows
-    for i, stock in enumerate(nearly_passed_stocks):
+    
+    # Sort by number of rules passed (descending)
+    sorted_stocks = sorted(failed_stocks, key=lambda x: x.get('rules_passed_count', 0), reverse=True)
+    
+    for stock in sorted_stocks:
+        symbol = stock.get('symbol', 'N/A')
+        close = stock.get('close', 0)
         metrics = stock.get('metrics', {})
+        price_drop_pct = metrics.get('price_drop_pct', 0)
+        volume_ratio = metrics.get('volume_ratio', 0)
+        rules_passed = stock.get('rules_passed_count', 0)
+        reason = stock.get('reason', 'Unknown')
+        
+        # Check if this stock almost passed (failed just one rule)
+        row_class = "almost-passed" if rules_passed == TOTAL_RULES - 1 else ""
+        
+        # Create indicators for each rule
+        rule1_class = "pass" if stock.get('passed_rule1', False) else "fail"
+        rule2_class = "pass" if stock.get('passed_rule2', False) else "fail"
+        rule3_class = "pass" if stock.get('passed_rule3', False) else "fail"
+        rule4_class = "pass" if stock.get('passed_rule4', False) else "fail"
+        
+        # Safe formatting - handle None and other invalid values
+        close_str = f"{close:.2f}" if isinstance(close, (int, float)) and not pd.isna(close) else "N/A"
+        drop_str = f"{price_drop_pct:.2f}%" if isinstance(price_drop_pct, (int, float)) and not pd.isna(price_drop_pct) else "N/A"
+        ratio_str = f"{volume_ratio:.2f}x" if isinstance(volume_ratio, (int, float)) and not pd.isna(volume_ratio) else "N/A"
+        
+        # Create the row
         html_content += f"""
-                    <tr>
-                        <td>{i+1}</td>
-                        <td>{stock.get('symbol', 'N/A')}</td>
-                        <td class="numeric">{stock.get('close', 0.0):.2f}</td>
-                        <td class="numeric">{metrics.get('ema_20', 0.0):.2f}</td>
-                        <td class="numeric">{metrics.get('ema_50', 0.0):.2f}</td>
-                        <td class="numeric">{stock.get('period_high', 0.0):.2f}</td>
-                        <td class="numeric">{stock.get('period_low', 0.0):.2f}</td>
-                        <td class="numeric">{_format_volume(stock.get('volume'))}</td>
-                        <td class="numeric">{_format_volume(stock.get('avg_volume_50d'))}</td>
-                        <td class="numeric">{metrics.get('volume_ratio', 0.0):.2f}x</td>
-                        <td class="center pass">{stock.get('rules_passed_count', 0)}/{TOTAL_RULES}</td>
-                        <td class="fail">{stock.get('failed_rules_display', 'N/A')}</td>
-                        <td class="numeric">{metrics.get('price_drop_pct', 0.0):.2f}%</td>
-                    </tr>
-"""
-
+                <tr class="{row_class}">
+                    <td>{symbol}</td>
+                    <td>{close_str}</td>
+                    <td>{drop_str}</td>
+                    <td>{ratio_str}</td>
+                    <td>{rules_passed}/{TOTAL_RULES}</td>
+                    <td><span class="rule-indicator {rule1_class}"></span></td>
+                    <td><span class="rule-indicator {rule2_class}"></span></td>
+                    <td><span class="rule-indicator {rule3_class}"></span></td>
+                    <td><span class="rule-indicator {rule4_class}"></span></td>
+                    <td>{reason}</td>
+                </tr>"""
+    
+    # Close the HTML
     html_content += """
-                </tbody>
-            </table>
-        </div>
+            </tbody>
+        </table>
+        
         <div class="footer">
-            Generated on: """ + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + """
+            Generated on: """ + datetime.now().strftime('%Y-%m-%d %I:%M %p') + """
         </div>
     </div>
 </body>
 </html>
 """
-
+    
     try:
         with open(filename, 'w', encoding='utf-8') as f:
             f.write(html_content)
-        logging.info(f"Failure analysis report generated successfully: {filename}")
-        return True # Indicate success
-    except IOError as e:
-        logging.error(f"Error writing failure analysis report to {filename}: {e}")
-        return False
+        logging.info(f"Failure analysis report generated: {filename}")
     except Exception as e:
-        logging.error(f"An unexpected error occurred during failure analysis report generation: {e}")
-        return False
+        logging.error(f"Error generating failure report: {e}")
+
+if __name__ == "__main__":
+    # Test code for the failure report generator
+    from datetime import datetime
+    
+    # Sample failed stocks for testing
+    test_failed_stocks = [
+        {
+            'symbol': 'SBIN', 
+            'close': 750.50, 
+            'timestamp': datetime.now(),
+            'passed_rule1': True, 'passed_rule2': False, 'passed_rule3': True, 'passed_rule4': True,
+            'rules_passed_count': 3,
+            'metrics': {'price_drop_pct': 12.5, 'volume_ratio': 2.2},
+            'reason': "Failed: Rule2(Drop%)"
+        },
+        {
+            'symbol': 'INFY', 
+            'close': 1650.75, 
+            'timestamp': datetime.now(),
+            'passed_rule1': False, 'passed_rule2': False, 'passed_rule3': True, 'passed_rule4': False,
+            'rules_passed_count': 1,
+            'metrics': {'price_drop_pct': 15.0, 'volume_ratio': 2.1},
+            'reason': "Failed: Rule1(Trend), Rule2(Drop%), Rule4(PriceRange)"
+        }
+    ]
+    
+    test_filename = "test_failure_report.html"
+    generate_failure_report(test_failed_stocks, test_filename)
+    print(f"Test failure report generated: {test_filename}")

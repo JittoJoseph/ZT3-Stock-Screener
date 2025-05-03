@@ -254,6 +254,9 @@ def generate_html_report(shortlisted_stocks, filename):
              symbol = stock.get('symbol', 'N/A')
              tradingview_url = f"https://www.tradingview.com/chart/?symbol=NSE%3A{symbol}"
 
+             # Add price drop percentage to display
+             price_drop_pct = metrics.get('price_drop_pct', 0.0)
+
              # Construct the table row string explicitly
              row_html = "<tr>"
              row_html += f"<td>{i+1}</td>"
@@ -263,7 +266,7 @@ def generate_html_report(shortlisted_stocks, filename):
              row_html += f"<td style='text-align: right;'>{ema_20_val:.2f}</td>" # Add EMA(20) value
              row_html += f"<td style='text-align: right;'>{ema_50_val:.2f}</td>" # Add EMA(50) value
              row_html += f"<td style='text-align: right;'>{stock.get('period_high', 0.0):.2f}</td>" # Use period_high
-             row_html += f"<td style='text-align: right;'>{stock.get('period_low', 0.0):.2f}</td>"  # Use period_low
+             row_html += f"<td style='text-align: right;'>{price_drop_pct:.2f}%</td>" # Show price drop %
              row_html += f"<td style='text-align: right;'>{volume_str}</td>"
              row_html += f"<td style='text-align: right;'>{avg_volume_str}</td>" # Add avg volume (50d)
              row_html += f"<td style='text-align: right;'>{volume_ratio_val:.2f}x</td>" # Add volume ratio (Corrected)

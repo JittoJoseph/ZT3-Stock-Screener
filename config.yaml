@@ -1,18 +1,24 @@
 # Application configuration settings
 
 screener:
-  lookback_period: 50 # Days for high/low, average volume
+  # Rule 1: Trend Alignment
+  ema_period_short: 20
+  ema_period_long: 50
+
+  # Rule 2: Proximity to 50-Day High
+  lookback_period: 50
+  price_drop_percent_min: 0.0
+  price_drop_percent_max: 10.0
+
+  # Rule 3: Volume Ratio Filter
+  avg_volume_lookback: 50
+  volume_surge_min: 2.0
+  volume_surge_max: 2.5
+
+  # Rule 4: Price Range Filter
   min_price: 25.0
   max_price: 1500.0
-  enable_max_price_limit: true
-  # New parameters moved from code:
-  price_drop_percent_max: 10.0 # Rule 1: Max % drop from high
-  price_drop_percent_min: 0.0 # Rule 2: Min % drop from high (must be > 0)
-  ema_period_short: 20 # Rule 6: Short EMA period
-  ema_period_long: 50 # Rule 3 & 6: Long EMA period
-  avg_volume_lookback: 50 # Rule 5: Days for average volume calculation (should match lookback_period?)
-  volume_surge_min: 2.0 # Rule 5: Min volume ratio
-  volume_surge_max: 2.5 # Rule 5: Max volume ratio
+  enable_max_price_limit: true # Added back for backward compatibility with failure_report.py
 
 paths:
   stock_list_file: "stock_list.csv"
