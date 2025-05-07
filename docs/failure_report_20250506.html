@@ -1,0 +1,3592 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Failure Analysis Report - 2025-05-06</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f8f9fa;
+            color: #212529;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: #007bff;
+            margin-top: 0;
+        }
+        .stats-box {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007bff;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        .stat-card {
+            background-color: #ffffff;
+            border-radius: 6px;
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .stat-card h3 {
+            margin-top: 0;
+            color: #6c757d;
+            font-size: 1em;
+            font-weight: normal;
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #343a40;
+            margin: 10px 0;
+        }
+        .stat-percent {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }
+        th, td {
+            border: 1px solid #dee2e6;
+            padding: 8px 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #e9ecef;
+            color: #495057;
+            font-weight: 600;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+        tr:hover {
+            background-color: #e2e6ea;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+        .rule-desc {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: 5px;
+        }
+        .almost-passed {
+            background-color: #fff3cd;
+        }
+        .reasonably-close {
+            background-color: #d1ecf1;
+        }
+        .rule-indicator {
+            width: 15px;
+            height: 15px;
+            display: inline-block;
+            margin-right: 5px;
+            border-radius: 50%;
+        }
+        .pass {
+            background-color: #28a745;
+        }
+        .fail {
+            background-color: #dc3545;
+        }
+        .note {
+            padding: 10px;
+            background-color: #e2e3e5;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-style: italic;
+        }
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            .container {
+                padding: 15px;
+            }
+            table {
+                display: block;
+                overflow-x: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Failure Analysis Report</h1>
+        <p>Screening Date: 2025-05-06</p>
+        
+        <div class="note">
+            Showing only stocks that failed at most 2 rules (out of 5 total rules).
+            0 stocks that failed more rules have been filtered out.
+        </div>
+        
+        <div class="stats-box">
+            <h2>Failure Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3>Almost Passed (Failed 1 Rule)</h3>
+                    <div class="stat-value">43</div>
+                    <div class="stat-percent">16.6% of filtered failures</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Reasonably Close (Failed 2 Rules)</h3>
+                    <div class="stat-value">211</div>
+                    <div class="stat-percent">81.5% of filtered failures</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Rule 1 Failures (Trend)</h3>
+                    <div class="stat-value">20</div>
+                    <div class="stat-percent">7.7% of failures</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Rule 2 Failures (Drop%)</h3>
+                    <div class="stat-value">8</div>
+                    <div class="stat-percent">3.1% of failures</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Rule 3 Failures (Vol Ratio)</h3>
+                    <div class="stat-value">247</div>
+                    <div class="stat-percent">95.4% of failures</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Rule 4 Failures (Price Range)</h3>
+                    <div class="stat-value">29</div>
+                    <div class="stat-percent">11.2% of failures</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Rule 5 Failures (Buy Volume)</h3>
+                    <div class="stat-value">161</div>
+                    <div class="stat-percent">62.2% of failures</div>
+                </div>
+            </div>
+            
+            <div class="rule-desc">
+                <p><strong>Rule 1:</strong> Trend Alignment - Close > EMA(20) > EMA(50)</p>
+                <p><strong>Rule 2:</strong> Proximity to 50-Day High - 0.0% < Price Drop < 10.0%</p>
+                <p><strong>Rule 3:</strong> Volume Ratio - 2.0x < Vol/50d Avg < 2.5x</p>
+                <p><strong>Rule 4:</strong> Price Range - ₹25.0 < Close < ₹1500.0</p>
+                <p><strong>Rule 5:</strong> Buying Volume - Close > Open</p>
+            </div>
+        </div>
+
+        <h2>Detailed Analysis</h2>
+        <p>The following stocks failed 1-2 screening criteria:</p>
+        
+        <table>
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Close (₹)</th>
+                    <th>Drop %</th>
+                    <th>Vol Ratio</th>
+                    <th>Rules Passed</th>
+                    <th>Rule 1<br>(Trend)</th>
+                    <th>Rule 2<br>(Drop%)</th>
+                    <th>Rule 3<br>(Vol)</th>
+                    <th>Rule 4<br>(Price)</th>
+                    <th>Rule 5<br>(Buy Vol)</th>
+                    <th>Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+
+                <tr class="">
+                    <td>CHAMBLFERT</td>
+                    <td>726.65</td>
+                    <td>2.10%</td>
+                    <td>2.49x</td>
+                    <td>5/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Passed all criteria</td>
+                </tr>
+                <tr class="">
+                    <td>ELECON</td>
+                    <td>593.60</td>
+                    <td>1.92%</td>
+                    <td>2.30x</td>
+                    <td>5/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Passed all criteria</td>
+                </tr>
+                <tr class="">
+                    <td>FAZE3Q</td>
+                    <td>499.65</td>
+                    <td>7.46%</td>
+                    <td>2.03x</td>
+                    <td>5/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Passed all criteria</td>
+                </tr>
+                <tr class="">
+                    <td>MAXHEALTH</td>
+                    <td>1156.00</td>
+                    <td>2.82%</td>
+                    <td>2.05x</td>
+                    <td>5/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Passed all criteria</td>
+                </tr>
+                <tr class="">
+                    <td>RETAIL</td>
+                    <td>40.14</td>
+                    <td>4.66%</td>
+                    <td>2.27x</td>
+                    <td>5/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Passed all criteria</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>AHLEAST</td>
+                    <td>139.24</td>
+                    <td>6.74%</td>
+                    <td>1.13x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>ANURAS</td>
+                    <td>880.90</td>
+                    <td>1.02%</td>
+                    <td>1.03x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>ARVIND</td>
+                    <td>365.20</td>
+                    <td>7.68%</td>
+                    <td>0.54x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>CCL</td>
+                    <td>694.45</td>
+                    <td>1.83%</td>
+                    <td>110.60x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>CUPID</td>
+                    <td>83.98</td>
+                    <td>1.55%</td>
+                    <td>1.09x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>DALBHARAT</td>
+                    <td>1952.40</td>
+                    <td>3.30%</td>
+                    <td>2.01x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule4(PriceRange)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>DIAMONDYD</td>
+                    <td>1195.60</td>
+                    <td>7.73%</td>
+                    <td>1.54x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>EIDPARRY</td>
+                    <td>843.15</td>
+                    <td>3.86%</td>
+                    <td>1.66x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>EXIDEIND</td>
+                    <td>370.25</td>
+                    <td>4.72%</td>
+                    <td>1.82x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>FORTIS</td>
+                    <td>686.85</td>
+                    <td>5.26%</td>
+                    <td>0.85x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>GABRIEL</td>
+                    <td>554.45</td>
+                    <td>8.78%</td>
+                    <td>0.58x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>GULFOILLUB</td>
+                    <td>1197.60</td>
+                    <td>8.61%</td>
+                    <td>0.58x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>HEUBACHIND</td>
+                    <td>588.25</td>
+                    <td>1.10%</td>
+                    <td>1.55x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>HONASA</td>
+                    <td>251.63</td>
+                    <td>2.24%</td>
+                    <td>0.74x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>ICICIBANK</td>
+                    <td>1431.60</td>
+                    <td>1.05%</td>
+                    <td>0.50x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>INDIAGLYCO</td>
+                    <td>1367.00</td>
+                    <td>6.81%</td>
+                    <td>0.64x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>INDIACEM</td>
+                    <td>310.35</td>
+                    <td>2.83%</td>
+                    <td>1.06x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>JBMA</td>
+                    <td>681.15</td>
+                    <td>4.91%</td>
+                    <td>2.06x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>JINDALPHOT</td>
+                    <td>883.80</td>
+                    <td>1.03%</td>
+                    <td>1.49x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>JUNIPER</td>
+                    <td>288.60</td>
+                    <td>4.50%</td>
+                    <td>0.22x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>KRISHANA</td>
+                    <td>300.60</td>
+                    <td>1.07%</td>
+                    <td>2.84x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>LIBERTSHOE</td>
+                    <td>421.10</td>
+                    <td>8.91%</td>
+                    <td>1.96x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>MAHASTEEL</td>
+                    <td>276.05</td>
+                    <td>1.76%</td>
+                    <td>5.23x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>MOLDTKPAC</td>
+                    <td>507.25</td>
+                    <td>7.93%</td>
+                    <td>0.78x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>NAVNETEDUL</td>
+                    <td>142.22</td>
+                    <td>3.99%</td>
+                    <td>0.63x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>NEWGEN</td>
+                    <td>1078.20</td>
+                    <td>8.89%</td>
+                    <td>5.66x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>NAZARA</td>
+                    <td>1015.80</td>
+                    <td>1.28%</td>
+                    <td>1.57x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>NUVOCO</td>
+                    <td>342.75</td>
+                    <td>3.19%</td>
+                    <td>0.99x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>PARAGMILK</td>
+                    <td>195.41</td>
+                    <td>8.13%</td>
+                    <td>2.18x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>PROZONER</td>
+                    <td>36.54</td>
+                    <td>0.03%</td>
+                    <td>1.22x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>RAMCOCEM</td>
+                    <td>949.50</td>
+                    <td>6.08%</td>
+                    <td>0.38x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>REDINGTON</td>
+                    <td>250.15</td>
+                    <td>5.21%</td>
+                    <td>1.33x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>RRKABEL</td>
+                    <td>1213.50</td>
+                    <td>4.26%</td>
+                    <td>18.48x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>SALONA</td>
+                    <td>251.00</td>
+                    <td>9.87%</td>
+                    <td>0.49x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>SEMAC</td>
+                    <td>360.00</td>
+                    <td>6.86%</td>
+                    <td>0.03x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>SPLPETRO</td>
+                    <td>653.05</td>
+                    <td>1.80%</td>
+                    <td>1.54x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>SPORTKING</td>
+                    <td>106.20</td>
+                    <td>8.84%</td>
+                    <td>4.58x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>SSWL</td>
+                    <td>222.19</td>
+                    <td>2.04%</td>
+                    <td>2.79x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>TATVA</td>
+                    <td>763.80</td>
+                    <td>6.63%</td>
+                    <td>20.39x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>URAVIDEF</td>
+                    <td>470.00</td>
+                    <td>3.29%</td>
+                    <td>0.29x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>UNIVPHOTO</td>
+                    <td>199.17</td>
+                    <td>5.16%</td>
+                    <td>1.87x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>VINCOFE</td>
+                    <td>99.61</td>
+                    <td>5.17%</td>
+                    <td>1.58x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="almost-passed">
+                    <td>VMM</td>
+                    <td>125.18</td>
+                    <td>1.00%</td>
+                    <td>1.85x</td>
+                    <td>4/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>AAATECH</td>
+                    <td>82.76</td>
+                    <td>8.98%</td>
+                    <td>2.11x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule1(Trend), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>AADHARHFC</td>
+                    <td>464.65</td>
+                    <td>5.42%</td>
+                    <td>0.44x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>AARTIIND</td>
+                    <td>435.30</td>
+                    <td>4.10%</td>
+                    <td>1.52x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ACI</td>
+                    <td>614.00</td>
+                    <td>8.36%</td>
+                    <td>0.43x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ADANIENSOL</td>
+                    <td>907.40</td>
+                    <td>7.50%</td>
+                    <td>1.01x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ACMESOLAR</td>
+                    <td>212.35</td>
+                    <td>7.67%</td>
+                    <td>0.88x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ADANIPORTS</td>
+                    <td>1320.80</td>
+                    <td>4.08%</td>
+                    <td>1.26x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>AGI</td>
+                    <td>804.75</td>
+                    <td>4.54%</td>
+                    <td>0.55x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ALIVUS</td>
+                    <td>1111.00</td>
+                    <td>2.49%</td>
+                    <td>1.25x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ALLDIGI</td>
+                    <td>959.15</td>
+                    <td>4.47%</td>
+                    <td>0.49x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>AMRUTANJAN</td>
+                    <td>672.55</td>
+                    <td>8.37%</td>
+                    <td>0.41x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>APLLTD</td>
+                    <td>886.80</td>
+                    <td>9.41%</td>
+                    <td>1.57x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>APOLLO</td>
+                    <td>118.58</td>
+                    <td>8.64%</td>
+                    <td>2.10x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule1(Trend), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>APOLLOHOSP</td>
+                    <td>7009.00</td>
+                    <td>3.23%</td>
+                    <td>0.73x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>APOLLOTYRE</td>
+                    <td>482.85</td>
+                    <td>1.81%</td>
+                    <td>1.08x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ARIES</td>
+                    <td>292.85</td>
+                    <td>9.05%</td>
+                    <td>2.62x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ASAHIINDIA</td>
+                    <td>726.35</td>
+                    <td>3.11%</td>
+                    <td>0.38x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ASHIMASYN</td>
+                    <td>32.02</td>
+                    <td>9.39%</td>
+                    <td>1.46x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ASHOKLEY</td>
+                    <td>221.13</td>
+                    <td>5.09%</td>
+                    <td>0.26x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ASTERDM</td>
+                    <td>520.65</td>
+                    <td>2.23%</td>
+                    <td>0.45x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ASTRAMICRO</td>
+                    <td>832.40</td>
+                    <td>3.43%</td>
+                    <td>0.87x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ATGL</td>
+                    <td>632.95</td>
+                    <td>7.52%</td>
+                    <td>3.16x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>AUBANK</td>
+                    <td>671.75</td>
+                    <td>5.79%</td>
+                    <td>0.54x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>AUROPHARMA</td>
+                    <td>1210.10</td>
+                    <td>5.36%</td>
+                    <td>1.16x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>AVADHSUGAR</td>
+                    <td>543.10</td>
+                    <td>6.68%</td>
+                    <td>0.42x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>AVALON</td>
+                    <td>852.95</td>
+                    <td>7.80%</td>
+                    <td>1.42x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>AXISBANK</td>
+                    <td>1161.40</td>
+                    <td>6.24%</td>
+                    <td>0.72x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BAJAJCON</td>
+                    <td>173.16</td>
+                    <td>5.61%</td>
+                    <td>10.47x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BAJAJFINSV</td>
+                    <td>2035.80</td>
+                    <td>4.65%</td>
+                    <td>0.75x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BALMLAWRIE</td>
+                    <td>201.10</td>
+                    <td>5.14%</td>
+                    <td>0.56x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BALRAMCHIN</td>
+                    <td>553.85</td>
+                    <td>8.49%</td>
+                    <td>0.45x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BARBEQUE</td>
+                    <td>328.60</td>
+                    <td>7.70%</td>
+                    <td>0.91x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BEL</td>
+                    <td>310.50</td>
+                    <td>3.11%</td>
+                    <td>0.76x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BESTAGRO</td>
+                    <td>354.00</td>
+                    <td>13.13%</td>
+                    <td>0.17x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule2(Drop%), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BERGEPAINT</td>
+                    <td>543.25</td>
+                    <td>8.83%</td>
+                    <td>0.51x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BHARTIARTL</td>
+                    <td>1901.00</td>
+                    <td>0.58%</td>
+                    <td>1.28x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BIOCON</td>
+                    <td>341.45</td>
+                    <td>4.46%</td>
+                    <td>2.60x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BLACKBUCK</td>
+                    <td>418.20</td>
+                    <td>9.08%</td>
+                    <td>1.37x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BLKASHYAP</td>
+                    <td>64.53</td>
+                    <td>5.64%</td>
+                    <td>0.58x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BLUEDART</td>
+                    <td>6628.00</td>
+                    <td>1.79%</td>
+                    <td>1.48x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BODALCHEM</td>
+                    <td>65.42</td>
+                    <td>8.05%</td>
+                    <td>0.98x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BPCL</td>
+                    <td>311.45</td>
+                    <td>4.42%</td>
+                    <td>0.45x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BRITANNIA</td>
+                    <td>5393.50</td>
+                    <td>4.08%</td>
+                    <td>0.37x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>BYKE</td>
+                    <td>78.12</td>
+                    <td>7.28%</td>
+                    <td>1.14x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>CANFINHOME</td>
+                    <td>703.35</td>
+                    <td>6.22%</td>
+                    <td>0.46x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>CARERATING</td>
+                    <td>1249.40</td>
+                    <td>3.38%</td>
+                    <td>1.35x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>CARRARO</td>
+                    <td>393.65</td>
+                    <td>4.51%</td>
+                    <td>1.95x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>CEATLTD</td>
+                    <td>3575.90</td>
+                    <td>1.43%</td>
+                    <td>6.74x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>CESC</td>
+                    <td>162.77</td>
+                    <td>1.74%</td>
+                    <td>1.63x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>CHOICEIN</td>
+                    <td>620.65</td>
+                    <td>2.72%</td>
+                    <td>1.28x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>CHOLAHLDNG</td>
+                    <td>1886.00</td>
+                    <td>5.70%</td>
+                    <td>0.37x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>COLPAL</td>
+                    <td>2621.40</td>
+                    <td>4.47%</td>
+                    <td>0.68x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>COROMANDEL</td>
+                    <td>2284.10</td>
+                    <td>2.31%</td>
+                    <td>1.51x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>CREST</td>
+                    <td>390.25</td>
+                    <td>6.86%</td>
+                    <td>0.36x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>CREDITACC</td>
+                    <td>1104.30</td>
+                    <td>7.04%</td>
+                    <td>0.18x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>CSBBANK</td>
+                    <td>348.25</td>
+                    <td>5.62%</td>
+                    <td>1.06x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>CUB</td>
+                    <td>181.22</td>
+                    <td>2.19%</td>
+                    <td>0.88x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>DCBBANK</td>
+                    <td>132.84</td>
+                    <td>5.28%</td>
+                    <td>1.06x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>DCMSRIND</td>
+                    <td>178.61</td>
+                    <td>7.93%</td>
+                    <td>4.44x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>DEEPAKFERT</td>
+                    <td>1246.90</td>
+                    <td>7.56%</td>
+                    <td>0.55x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>DELHIVERY</td>
+                    <td>302.10</td>
+                    <td>3.33%</td>
+                    <td>0.65x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>DEVYANI</td>
+                    <td>176.97</td>
+                    <td>3.00%</td>
+                    <td>0.36x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>DHARMAJ</td>
+                    <td>208.18</td>
+                    <td>7.68%</td>
+                    <td>0.54x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>DIVISLAB</td>
+                    <td>6161.00</td>
+                    <td>2.34%</td>
+                    <td>0.76x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>DLINKINDIA</td>
+                    <td>465.55</td>
+                    <td>4.80%</td>
+                    <td>1.24x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>DOLPHIN</td>
+                    <td>430.40</td>
+                    <td>0.06%</td>
+                    <td>0.11x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>EICHERMOT</td>
+                    <td>5515.00</td>
+                    <td>6.63%</td>
+                    <td>1.17x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>EIFFL</td>
+                    <td>219.81</td>
+                    <td>4.01%</td>
+                    <td>1.22x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>EIMCOELECO</td>
+                    <td>1842.70</td>
+                    <td>7.44%</td>
+                    <td>1.19x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ELECTHERM</td>
+                    <td>1142.40</td>
+                    <td>7.42%</td>
+                    <td>2.79x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>EMAMILTD</td>
+                    <td>627.35</td>
+                    <td>3.98%</td>
+                    <td>1.22x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ENTERO</td>
+                    <td>1307.10</td>
+                    <td>8.27%</td>
+                    <td>0.48x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ERIS</td>
+                    <td>1459.00</td>
+                    <td>4.95%</td>
+                    <td>0.62x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ETERNAL</td>
+                    <td>232.64</td>
+                    <td>4.44%</td>
+                    <td>0.41x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>FACT</td>
+                    <td>775.35</td>
+                    <td>6.12%</td>
+                    <td>1.65x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>FDC</td>
+                    <td>425.55</td>
+                    <td>3.72%</td>
+                    <td>0.71x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>FIEMIND</td>
+                    <td>1448.40</td>
+                    <td>6.25%</td>
+                    <td>1.31x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>FINEORG</td>
+                    <td>4159.60</td>
+                    <td>5.43%</td>
+                    <td>1.08x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>FLAIR</td>
+                    <td>261.23</td>
+                    <td>3.18%</td>
+                    <td>1.33x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>GAIL</td>
+                    <td>186.41</td>
+                    <td>5.38%</td>
+                    <td>0.44x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>GHCLTEXTIL</td>
+                    <td>83.85</td>
+                    <td>7.26%</td>
+                    <td>1.77x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>GILLANDERS</td>
+                    <td>117.02</td>
+                    <td>6.38%</td>
+                    <td>2.66x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>GMRAIRPORT</td>
+                    <td>86.42</td>
+                    <td>4.18%</td>
+                    <td>0.33x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>GOCOLORS</td>
+                    <td>876.60</td>
+                    <td>4.84%</td>
+                    <td>1.70x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>GODREJCP</td>
+                    <td>1250.80</td>
+                    <td>2.88%</td>
+                    <td>0.78x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>GSPL</td>
+                    <td>319.00</td>
+                    <td>4.66%</td>
+                    <td>0.23x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>GUJGASLTD</td>
+                    <td>455.45</td>
+                    <td>3.71%</td>
+                    <td>0.31x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>HCG</td>
+                    <td>563.65</td>
+                    <td>6.36%</td>
+                    <td>0.69x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>HDFCBANK</td>
+                    <td>1931.70</td>
+                    <td>2.39%</td>
+                    <td>0.70x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>HDFCLIFE</td>
+                    <td>722.60</td>
+                    <td>3.63%</td>
+                    <td>0.51x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>HINDPETRO</td>
+                    <td>396.80</td>
+                    <td>4.15%</td>
+                    <td>0.83x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>HINDUNILVR</td>
+                    <td>2381.80</td>
+                    <td>4.25%</td>
+                    <td>0.93x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ICICIPRULI</td>
+                    <td>592.65</td>
+                    <td>4.70%</td>
+                    <td>0.29x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>IDFCFIRSTB</td>
+                    <td>65.52</td>
+                    <td>5.15%</td>
+                    <td>0.69x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>IEX</td>
+                    <td>190.99</td>
+                    <td>5.15%</td>
+                    <td>1.40x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>INDIASHLTR</td>
+                    <td>853.80</td>
+                    <td>6.69%</td>
+                    <td>0.59x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>INDOCO</td>
+                    <td>239.25</td>
+                    <td>7.43%</td>
+                    <td>0.52x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>INDOBORAX</td>
+                    <td>181.36</td>
+                    <td>8.91%</td>
+                    <td>0.85x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>INOXGREEN</td>
+                    <td>136.99</td>
+                    <td>7.88%</td>
+                    <td>0.62x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>INTELLECT</td>
+                    <td>782.90</td>
+                    <td>6.85%</td>
+                    <td>0.42x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>IOC</td>
+                    <td>144.08</td>
+                    <td>3.82%</td>
+                    <td>1.13x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ITC</td>
+                    <td>435.55</td>
+                    <td>0.93%</td>
+                    <td>0.99x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>IVP</td>
+                    <td>169.55</td>
+                    <td>6.04%</td>
+                    <td>0.49x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>JAMNAAUTO</td>
+                    <td>81.21</td>
+                    <td>8.13%</td>
+                    <td>0.62x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>JIOFIN</td>
+                    <td>251.20</td>
+                    <td>5.28%</td>
+                    <td>0.66x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>JKIL</td>
+                    <td>665.85</td>
+                    <td>8.12%</td>
+                    <td>1.76x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>JKTYRE</td>
+                    <td>311.70</td>
+                    <td>4.90%</td>
+                    <td>2.58x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>JSFB</td>
+                    <td>499.95</td>
+                    <td>5.75%</td>
+                    <td>0.89x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>JPOLYINVST</td>
+                    <td>885.55</td>
+                    <td>1.05%</td>
+                    <td>1.53x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>JSWSTEEL</td>
+                    <td>967.50</td>
+                    <td>9.99%</td>
+                    <td>0.74x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>JUBLCPL</td>
+                    <td>1439.50</td>
+                    <td>7.07%</td>
+                    <td>0.74x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>JUBLFOOD</td>
+                    <td>706.05</td>
+                    <td>3.01%</td>
+                    <td>0.36x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>JYOTHYLAB</td>
+                    <td>369.80</td>
+                    <td>7.53%</td>
+                    <td>0.19x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>JYOTICNC</td>
+                    <td>1139.40</td>
+                    <td>4.01%</td>
+                    <td>0.61x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>KALYANIFRG</td>
+                    <td>733.95</td>
+                    <td>0.00%</td>
+                    <td>6.18x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule2(Drop%), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>KANPRPLA</td>
+                    <td>122.60</td>
+                    <td>5.47%</td>
+                    <td>3.91x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>KIMS</td>
+                    <td>662.60</td>
+                    <td>6.41%</td>
+                    <td>0.33x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>KPRMILL</td>
+                    <td>1019.10</td>
+                    <td>6.20%</td>
+                    <td>0.70x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>KRYSTAL</td>
+                    <td>667.20</td>
+                    <td>3.99%</td>
+                    <td>3.53x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>LALPATHLAB</td>
+                    <td>2807.80</td>
+                    <td>5.75%</td>
+                    <td>0.57x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>LODHA</td>
+                    <td>1296.00</td>
+                    <td>6.76%</td>
+                    <td>0.39x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>LOYALTEX</td>
+                    <td>289.95</td>
+                    <td>8.60%</td>
+                    <td>0.16x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>LTF</td>
+                    <td>164.26</td>
+                    <td>9.82%</td>
+                    <td>1.09x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>MADRASFERT</td>
+                    <td>83.07</td>
+                    <td>6.21%</td>
+                    <td>1.67x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>MAHABANK</td>
+                    <td>50.07</td>
+                    <td>4.45%</td>
+                    <td>1.11x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>MAITHANALL</td>
+                    <td>951.85</td>
+                    <td>8.48%</td>
+                    <td>0.31x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>MANGCHEFER</td>
+                    <td>227.44</td>
+                    <td>5.23%</td>
+                    <td>2.94x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>MARICO</td>
+                    <td>720.10</td>
+                    <td>2.14%</td>
+                    <td>0.94x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>MATRIMONY</td>
+                    <td>505.70</td>
+                    <td>9.62%</td>
+                    <td>1.16x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>MASTERTR</td>
+                    <td>149.12</td>
+                    <td>2.85%</td>
+                    <td>1.75x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>MCLOUD</td>
+                    <td>67.79</td>
+                    <td>10.20%</td>
+                    <td>0.81x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule2(Drop%), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>MEDPLUS</td>
+                    <td>815.80</td>
+                    <td>3.46%</td>
+                    <td>0.74x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>MFSL</td>
+                    <td>1269.20</td>
+                    <td>3.51%</td>
+                    <td>0.58x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>MGL</td>
+                    <td>1376.90</td>
+                    <td>3.16%</td>
+                    <td>1.35x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>MIDHANI</td>
+                    <td>305.00</td>
+                    <td>6.01%</td>
+                    <td>0.67x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>MOIL</td>
+                    <td>325.80</td>
+                    <td>8.23%</td>
+                    <td>1.11x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>MOTHERSON</td>
+                    <td>135.47</td>
+                    <td>3.51%</td>
+                    <td>0.55x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>MSUMI</td>
+                    <td>56.13</td>
+                    <td>2.31%</td>
+                    <td>0.61x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>NAM-INDIA</td>
+                    <td>635.75</td>
+                    <td>6.63%</td>
+                    <td>0.71x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>NCLIND</td>
+                    <td>207.64</td>
+                    <td>6.30%</td>
+                    <td>0.73x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>NESTLEIND</td>
+                    <td>2356.50</td>
+                    <td>6.30%</td>
+                    <td>1.11x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>NH</td>
+                    <td>1795.50</td>
+                    <td>4.07%</td>
+                    <td>1.23x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>NITCO</td>
+                    <td>126.97</td>
+                    <td>9.24%</td>
+                    <td>0.72x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>NITINSPIN</td>
+                    <td>362.05</td>
+                    <td>5.79%</td>
+                    <td>0.58x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>NIVABUPA</td>
+                    <td>80.73</td>
+                    <td>9.80%</td>
+                    <td>1.23x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>OAL</td>
+                    <td>353.05</td>
+                    <td>3.01%</td>
+                    <td>0.83x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>NYKAA</td>
+                    <td>194.46</td>
+                    <td>3.11%</td>
+                    <td>0.84x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>OIL</td>
+                    <td>398.25</td>
+                    <td>4.38%</td>
+                    <td>0.68x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ONESOURCE</td>
+                    <td>1627.10</td>
+                    <td>7.75%</td>
+                    <td>2.38x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule4(PriceRange), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ORICONENT</td>
+                    <td>40.02</td>
+                    <td>5.84%</td>
+                    <td>0.51x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ORIENTALTL</td>
+                    <td>12.91</td>
+                    <td>3.44%</td>
+                    <td>1.88x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ORIENTELEC</td>
+                    <td>238.17</td>
+                    <td>4.21%</td>
+                    <td>0.72x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>PARADEEP</td>
+                    <td>138.69</td>
+                    <td>9.65%</td>
+                    <td>0.61x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>PARAS</td>
+                    <td>1353.90</td>
+                    <td>7.83%</td>
+                    <td>1.87x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>PETRONET</td>
+                    <td>307.05</td>
+                    <td>4.12%</td>
+                    <td>0.93x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>PNBHOUSING</td>
+                    <td>1038.90</td>
+                    <td>4.51%</td>
+                    <td>1.42x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>POCL</td>
+                    <td>757.60</td>
+                    <td>9.08%</td>
+                    <td>1.87x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>POLYCAB</td>
+                    <td>5906.00</td>
+                    <td>2.82%</td>
+                    <td>3.16x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>POLYMED</td>
+                    <td>2781.30</td>
+                    <td>2.07%</td>
+                    <td>19.15x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>POWERGRID</td>
+                    <td>307.60</td>
+                    <td>4.47%</td>
+                    <td>0.61x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>PRESTIGE</td>
+                    <td>1332.00</td>
+                    <td>7.81%</td>
+                    <td>0.56x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>PTL</td>
+                    <td>39.91</td>
+                    <td>2.63%</td>
+                    <td>1.25x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>RADICO</td>
+                    <td>2537.20</td>
+                    <td>1.18%</td>
+                    <td>1.07x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>RAIN</td>
+                    <td>142.04</td>
+                    <td>7.10%</td>
+                    <td>0.48x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>RALLIS</td>
+                    <td>235.09</td>
+                    <td>8.22%</td>
+                    <td>0.61x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>RBA</td>
+                    <td>79.25</td>
+                    <td>8.91%</td>
+                    <td>0.35x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>RBLBANK</td>
+                    <td>197.19</td>
+                    <td>5.58%</td>
+                    <td>0.56x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>RELIANCE</td>
+                    <td>1420.90</td>
+                    <td>1.29%</td>
+                    <td>1.00x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>REMSONSIND</td>
+                    <td>111.51</td>
+                    <td>17.83%</td>
+                    <td>2.14x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule2(Drop%)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>RHL</td>
+                    <td>232.35</td>
+                    <td>9.69%</td>
+                    <td>0.88x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>RPEL</td>
+                    <td>610.25</td>
+                    <td>9.99%</td>
+                    <td>0.54x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SAGCEM</td>
+                    <td>211.37</td>
+                    <td>9.74%</td>
+                    <td>0.43x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SAHYADRI</td>
+                    <td>265.15</td>
+                    <td>9.81%</td>
+                    <td>0.32x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SAILIFE</td>
+                    <td>721.10</td>
+                    <td>8.95%</td>
+                    <td>0.68x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SANDUMA</td>
+                    <td>478.25</td>
+                    <td>6.63%</td>
+                    <td>1.15x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SANDESH</td>
+                    <td>1135.00</td>
+                    <td>8.02%</td>
+                    <td>1.09x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SATIN</td>
+                    <td>162.76</td>
+                    <td>2.54%</td>
+                    <td>0.77x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SBICARD</td>
+                    <td>889.70</td>
+                    <td>4.40%</td>
+                    <td>0.60x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SCHAEFFLER</td>
+                    <td>3575.80</td>
+                    <td>4.31%</td>
+                    <td>0.62x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SDBL</td>
+                    <td>132.58</td>
+                    <td>8.12%</td>
+                    <td>1.21x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SELMC</td>
+                    <td>39.00</td>
+                    <td>20.03%</td>
+                    <td>1.82x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule2(Drop%), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SGIL</td>
+                    <td>505.65</td>
+                    <td>4.59%</td>
+                    <td>1.33x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SHREDIGCEM</td>
+                    <td>76.90</td>
+                    <td>4.94%</td>
+                    <td>0.36x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SHYAMMETL</td>
+                    <td>880.00</td>
+                    <td>4.76%</td>
+                    <td>0.54x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SILGO</td>
+                    <td>49.22</td>
+                    <td>2.53%</td>
+                    <td>0.37x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SMSPHARMA</td>
+                    <td>240.78</td>
+                    <td>3.18%</td>
+                    <td>1.60x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SOBHA</td>
+                    <td>1263.10</td>
+                    <td>5.31%</td>
+                    <td>0.52x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SUNDARMFIN</td>
+                    <td>5115.00</td>
+                    <td>4.98%</td>
+                    <td>0.51x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SUNDARMHLD</td>
+                    <td>338.30</td>
+                    <td>9.79%</td>
+                    <td>0.84x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SUPREME</td>
+                    <td>100.62</td>
+                    <td>13.63%</td>
+                    <td>1.31x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule2(Drop%), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>SVLL</td>
+                    <td>521.40</td>
+                    <td>15.98%</td>
+                    <td>1.13x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule2(Drop%), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>TATACONSUM</td>
+                    <td>1155.30</td>
+                    <td>2.13%</td>
+                    <td>0.72x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>TATASTEEL</td>
+                    <td>144.44</td>
+                    <td>9.78%</td>
+                    <td>1.04x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>TERASOFT</td>
+                    <td>211.75</td>
+                    <td>9.71%</td>
+                    <td>0.99x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule1(Trend), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>TFCILTD</td>
+                    <td>204.63</td>
+                    <td>3.75%</td>
+                    <td>0.93x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>THYROCARE</td>
+                    <td>920.25</td>
+                    <td>2.62%</td>
+                    <td>1.20x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>TMB</td>
+                    <td>442.70</td>
+                    <td>8.15%</td>
+                    <td>0.64x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>TNPETRO</td>
+                    <td>75.25</td>
+                    <td>2.32%</td>
+                    <td>0.92x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>TRIVENI</td>
+                    <td>406.20</td>
+                    <td>9.73%</td>
+                    <td>0.29x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>TVSELECT</td>
+                    <td>393.60</td>
+                    <td>9.51%</td>
+                    <td>0.48x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>UBL</td>
+                    <td>2136.80</td>
+                    <td>6.89%</td>
+                    <td>0.22x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>UFLEX</td>
+                    <td>548.05</td>
+                    <td>5.35%</td>
+                    <td>0.51x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>UNIENTER</td>
+                    <td>156.97</td>
+                    <td>5.94%</td>
+                    <td>0.58x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>UNITDSPR</td>
+                    <td>1576.30</td>
+                    <td>2.04%</td>
+                    <td>1.36x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>UPL</td>
+                    <td>679.05</td>
+                    <td>1.98%</td>
+                    <td>0.83x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>VALIANTLAB</td>
+                    <td>98.95</td>
+                    <td>10.49%</td>
+                    <td>0.06x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule2(Drop%), Rule3(VolRatio)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>VENTIVE</td>
+                    <td>763.65</td>
+                    <td>5.77%</td>
+                    <td>1.91x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>VGUARD</td>
+                    <td>370.50</td>
+                    <td>1.98%</td>
+                    <td>1.82x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>VMART</td>
+                    <td>3212.30</td>
+                    <td>8.73%</td>
+                    <td>3.95x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule4(PriceRange)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>WONDERLA</td>
+                    <td>690.10</td>
+                    <td>3.48%</td>
+                    <td>0.72x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+                <tr class="reasonably-close">
+                    <td>ZUARI</td>
+                    <td>218.18</td>
+                    <td>9.47%</td>
+                    <td>0.91x</td>
+                    <td>3/5</td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td><span class="rule-indicator pass"></span></td>
+                    <td><span class="rule-indicator fail"></span></td>
+                    <td>Failed: Rule3(VolRatio), Rule5(BuyVolume)</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div class="footer">
+            Generated on: 2025-05-07 10:49 AM
+        </div>
+    </div>
+</body>
+</html>
