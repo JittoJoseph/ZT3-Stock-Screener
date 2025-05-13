@@ -1,0 +1,192 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Screener Report - 2025-05-12</title>
+    <style>
+        /* ... existing styles ... */
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #212529;
+            font-size: 14px;
+        }
+        .container {
+            width: 100%;
+            margin: 0 auto;
+            background-color: #ffffff;
+            padding: 15px;
+            box-sizing: border-box;
+            box-shadow: none;
+            border-radius: 0;
+        }
+        h1 {
+            text-align: center;
+            color: #007bff;
+            margin-bottom: 5px;
+            font-size: 1.5em;
+        }
+        p.subtitle {
+            text-align: center;
+            color: #6c757d;
+            margin-top: 0;
+            margin-bottom: 20px;
+            font-size: 1em;
+        }
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            margin: 0 -15px;
+            padding: 0 15px;
+        }
+        table {
+            width: 100%;
+            min-width: 800px; /* Adjusted min-width for more columns */
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            border: 1px solid #dee2e6;
+            padding: 12px 15px;
+            text-align: left;
+            vertical-align: middle;
+            white-space: nowrap;
+            font-size: 1.5em; /* Mobile font size */
+        }
+        th {
+            background-color: #e9ecef;
+            color: #495057;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+        tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        /* Adjust alignment for new columns */
+        td:nth-child(4), /* Open Price */
+        td:nth-child(5), /* Close Price */
+        td:nth-child(6), /* EMA(20) */
+        td:nth-child(7), /* EMA(50) */
+        td:nth-child(8), /* Period High */
+        td:nth-child(9), /* Drop % */
+        td:nth-child(10), /* Volume */
+        td:nth-child(11), /* Avg Vol */
+        td:nth-child(12)  /* Vol Ratio */
+        {
+            text-align: right;
+        }
+
+        .footer {
+            margin-top: 20px;
+            font-size: 0.8em;
+            text-align: center;
+            color: #6c757d;
+            padding: 10px 15px;
+        }
+
+        /* Desktop Styles */
+        @media (min-width: 768px) {
+            body {
+                padding: 20px;
+                font-size: 16px;
+            }
+            .container {
+                max-width: 1400px; /* Wider container for more columns */
+                margin: 20px auto;
+                padding: 30px;
+                border-radius: 8px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            }
+            h1 {
+                font-size: 2em;
+                margin-bottom: 10px;
+            }
+            p.subtitle {
+                font-size: 1.1em;
+                margin-bottom: 30px;
+            }
+            .table-container {
+                 margin: 0;
+                 padding: 0;
+            }
+            table {
+                min-width: auto;
+            }
+            th, td {
+                padding: 12px 15px;
+                white-space: normal;
+                font-size: 0.95em; /* Restore desktop table font size */
+            }
+            tr:hover {
+                background-color: #e2e6ea;
+            }
+            .footer {
+                margin-top: 30px;
+                font-size: 0.9em;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Daily Screener Report</h1>
+        <p style="text-align:center; margin-bottom:20px;"><a href="failure_report_20250512.html" target="_blank">View Failure Analysis Report</a></p>
+        <p class="subtitle">Screening Date: 2025-05-12</p>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Symbol</th>
+                        <th>ISIN</th>
+                        <th>Open (₹)</th>
+                        <th>Close (₹)</th>
+                        <th>EMA(20) (₹)</th>
+                        <th>EMA(50) (₹)</th>
+                        <th>Period High (₹)</th>
+                        <th>Drop %</th>
+                        <th>Volume</th>
+                        <th>Avg Vol (50d)</th>
+                        <th>Vol Ratio</th>
+                    </tr>
+                </thead>
+                <tbody>
+<tr><td>1</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3AARIES" target="_blank">ARIES</a></td><td>INE298I01015</td><td style='text-align: right;'>281.95</td><td style='text-align: right;'>304.15</td><td style='text-align: right;'>280.02</td><td style='text-align: right;'>268.78</td><td style='text-align: right;'>322.00</td><td style='text-align: right;'>5.54%</td><td style='text-align: right;'>98,176</td><td style='text-align: right;'>46,702</td><td style='text-align: right;'>2.10x</td></tr>
+<tr><td>2</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3AARKADE" target="_blank">ARKADE</a></td><td>INE0QRL01017</td><td style='text-align: right;'>158.00</td><td style='text-align: right;'>164.16</td><td style='text-align: right;'>160.04</td><td style='text-align: right;'>157.14</td><td style='text-align: right;'>178.45</td><td style='text-align: right;'>8.01%</td><td style='text-align: right;'>3,399,978</td><td style='text-align: right;'>1,503,597</td><td style='text-align: right;'>2.26x</td></tr>
+<tr><td>3</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3ADALMIASUG" target="_blank">DALMIASUG</a></td><td>INE495A01022</td><td style='text-align: right;'>383.95</td><td style='text-align: right;'>402.15</td><td style='text-align: right;'>382.10</td><td style='text-align: right;'>369.21</td><td style='text-align: right;'>422.80</td><td style='text-align: right;'>4.88%</td><td style='text-align: right;'>204,838</td><td style='text-align: right;'>100,886</td><td style='text-align: right;'>2.03x</td></tr>
+<tr><td>4</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3ADRREDDY" target="_blank">DRREDDY</a></td><td>INE089A01031</td><td style='text-align: right;'>1155.90</td><td style='text-align: right;'>1195.60</td><td style='text-align: right;'>1166.73</td><td style='text-align: right;'>1166.15</td><td style='text-align: right;'>1226.90</td><td style='text-align: right;'>2.55%</td><td style='text-align: right;'>5,065,176</td><td style='text-align: right;'>2,528,106</td><td style='text-align: right;'>2.00x</td></tr>
+<tr><td>5</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3AGILLANDERS" target="_blank">GILLANDERS</a></td><td>INE047B01011</td><td style='text-align: right;'>109.00</td><td style='text-align: right;'>115.27</td><td style='text-align: right;'>112.22</td><td style='text-align: right;'>108.52</td><td style='text-align: right;'>125.00</td><td style='text-align: right;'>7.78%</td><td style='text-align: right;'>28,618</td><td style='text-align: right;'>12,578</td><td style='text-align: right;'>2.28x</td></tr>
+<tr><td>6</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3AKIRIINDUS" target="_blank">KIRIINDUS</a></td><td>INE415I01015</td><td style='text-align: right;'>610.00</td><td style='text-align: right;'>624.80</td><td style='text-align: right;'>602.87</td><td style='text-align: right;'>598.75</td><td style='text-align: right;'>687.95</td><td style='text-align: right;'>9.18%</td><td style='text-align: right;'>1,326,358</td><td style='text-align: right;'>598,638</td><td style='text-align: right;'>2.22x</td></tr>
+<tr><td>7</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3AMADRASFERT" target="_blank">MADRASFERT</a></td><td>INE414A01015</td><td style='text-align: right;'>83.00</td><td style='text-align: right;'>87.59</td><td style='text-align: right;'>81.95</td><td style='text-align: right;'>79.91</td><td style='text-align: right;'>88.57</td><td style='text-align: right;'>1.11%</td><td style='text-align: right;'>503,145</td><td style='text-align: right;'>245,955</td><td style='text-align: right;'>2.05x</td></tr>
+<tr><td>8</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3AMINDTECK" target="_blank">MINDTECK</a></td><td>INE110B01017</td><td style='text-align: right;'>210.14</td><td style='text-align: right;'>225.74</td><td style='text-align: right;'>201.49</td><td style='text-align: right;'>196.07</td><td style='text-align: right;'>244.90</td><td style='text-align: right;'>7.82%</td><td style='text-align: right;'>417,666</td><td style='text-align: right;'>174,280</td><td style='text-align: right;'>2.40x</td></tr>
+<tr><td>9</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3ANAHARSPING" target="_blank">NAHARSPING</a></td><td>INE290A01027</td><td style='text-align: right;'>248.00</td><td style='text-align: right;'>259.45</td><td style='text-align: right;'>229.41</td><td style='text-align: right;'>222.08</td><td style='text-align: right;'>264.90</td><td style='text-align: right;'>2.06%</td><td style='text-align: right;'>118,593</td><td style='text-align: right;'>58,685</td><td style='text-align: right;'>2.02x</td></tr>
+<tr><td>10</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3ASGIL" target="_blank">SGIL</a></td><td>INE00QT01015</td><td style='text-align: right;'>486.20</td><td style='text-align: right;'>504.40</td><td style='text-align: right;'>476.65</td><td style='text-align: right;'>445.17</td><td style='text-align: right;'>530.00</td><td style='text-align: right;'>4.83%</td><td style='text-align: right;'>87,100</td><td style='text-align: right;'>35,813</td><td style='text-align: right;'>2.43x</td></tr>
+<tr><td>11</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3ASHANKARA" target="_blank">SHANKARA</a></td><td>INE274V01019</td><td style='text-align: right;'>697.95</td><td style='text-align: right;'>726.95</td><td style='text-align: right;'>627.20</td><td style='text-align: right;'>603.66</td><td style='text-align: right;'>732.10</td><td style='text-align: right;'>0.70%</td><td style='text-align: right;'>194,023</td><td style='text-align: right;'>84,163</td><td style='text-align: right;'>2.31x</td></tr>
+<tr><td>12</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3ASJS" target="_blank">SJS</a></td><td>INE284S01014</td><td style='text-align: right;'>1035.00</td><td style='text-align: right;'>1060.70</td><td style='text-align: right;'>948.01</td><td style='text-align: right;'>921.31</td><td style='text-align: right;'>1097.00</td><td style='text-align: right;'>3.31%</td><td style='text-align: right;'>287,614</td><td style='text-align: right;'>119,756</td><td style='text-align: right;'>2.40x</td></tr>
+<tr><td>13</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3ASUVEN" target="_blank">SUVEN</a></td><td>INE495B01038</td><td style='text-align: right;'>148.90</td><td style='text-align: right;'>153.07</td><td style='text-align: right;'>132.83</td><td style='text-align: right;'>127.38</td><td style='text-align: right;'>154.35</td><td style='text-align: right;'>0.83%</td><td style='text-align: right;'>1,095,118</td><td style='text-align: right;'>454,847</td><td style='text-align: right;'>2.41x</td></tr>
+<tr><td>14</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3ATALBROAUTO" target="_blank">TALBROAUTO</a></td><td>INE187D01029</td><td style='text-align: right;'>263.95</td><td style='text-align: right;'>270.70</td><td style='text-align: right;'>255.13</td><td style='text-align: right;'>251.28</td><td style='text-align: right;'>279.39</td><td style='text-align: right;'>3.11%</td><td style='text-align: right;'>290,019</td><td style='text-align: right;'>143,619</td><td style='text-align: right;'>2.02x</td></tr>
+<tr><td>15</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3ATHOMASCOOK" target="_blank">THOMASCOOK</a></td><td>INE332A01027</td><td style='text-align: right;'>138.00</td><td style='text-align: right;'>144.87</td><td style='text-align: right;'>136.61</td><td style='text-align: right;'>135.86</td><td style='text-align: right;'>154.05</td><td style='text-align: right;'>5.96%</td><td style='text-align: right;'>2,457,548</td><td style='text-align: right;'>1,147,110</td><td style='text-align: right;'>2.14x</td></tr>
+<tr><td>16</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3AUNIENTER" target="_blank">UNIENTER</a></td><td>INE037A01022</td><td style='text-align: right;'>153.30</td><td style='text-align: right;'>160.88</td><td style='text-align: right;'>155.93</td><td style='text-align: right;'>153.42</td><td style='text-align: right;'>168.13</td><td style='text-align: right;'>4.31%</td><td style='text-align: right;'>20,522</td><td style='text-align: right;'>8,215</td><td style='text-align: right;'>2.50x</td></tr>
+<tr><td>17</td><td><a href="https://www.tradingview.com/chart/?symbol=NSE%3AUNIVPHOTO" target="_blank">UNIVPHOTO</a></td><td>INE03V001013</td><td style='text-align: right;'>199.01</td><td style='text-align: right;'>210.05</td><td style='text-align: right;'>198.22</td><td style='text-align: right;'>195.43</td><td style='text-align: right;'>214.00</td><td style='text-align: right;'>1.85%</td><td style='text-align: right;'>5,969</td><td style='text-align: right;'>2,476</td><td style='text-align: right;'>2.41x</td></tr>
+
+            </tbody>
+          </table>
+        </div>
+        <div class="footer">
+          Generated on: 2025-05-14 12:05 AM
+        </div>
+      </div>
+    </body>
+    </html>
+    
